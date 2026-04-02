@@ -3,6 +3,7 @@ import { DEFAULT_LENDERS, DEFAULT_TERMS, createEmptyMenu } from '../../lib/fiMen
 import { calcDealSummary } from '../../lib/fiMenuCalc';
 import { canViewFiMenuCost } from '../../lib/auth';
 import { StatCard, styles, FM, FH } from '../../components/SharedUI';
+import { WARRANTY_BRANDS, getPlansForBrand, getHPGroupsForBrand, getAvailableTerms, lookupWarrantyRate, warrantyRateToFIProduct } from '../../lib/warrantyCatalog';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, label: lbl } = styles;
 
@@ -15,6 +16,29 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
   const lenders = config.lenders || DEFAULT_LENDERS;
   const terms = config.defaultTerms || DEFAULT_TERMS;
   const unitTypes = storeConfig?.unit_types || [];
+
+  // Warranty selector state
+  const [wBrand, setWBrand] = useState('');
+  const [wPlan, setWPlan] = useState('');
+  const [wCondition, setWCondition] = useState('new');
+  const [wHpGroup, setWHpGroup] = useState('');
+  const [wTerm, setWTerm] = useState('');
+
+  const wPlans = wBrand ? getPlansForBrand(wBrand) : [];
+  const wHpGroups = wBrand ? getHPGroupsForBrand(wBrand) : [];
+  const wTerms = wPlan && wHpGroup ? getAvailableTerms(wPlan, wCondition, wHpGroup) : [];
+  const wSelectedRate = wPlan && wHpGroup && wTerm ? lookupWarrantyRate(wPlan, wCondition, wHpGroup, parseInt(wTerm)) : null;
+
+  function addWarrantyProduct() {
+    if (!wSelectedRate) return;
+    const product = warrantyRateToFIProduct(wSelectedRate, wPlan, null);
+    if (!product) return;
+    // Check if already added
+    if (f.selectedProducts.find((p) => p.productId === product.productId)) return;
+    sF((prev) => ({ ...prev, selectedProducts: [...prev.selectedProducts, product], selectedPackage: null }));
+    // Reset selector
+    setWBrand(''); setWPlan(''); setWHpGroup(''); setWTerm('');
+  }
 
   // Toggle a product in/out of selection
   function toggleProduct(product) {
@@ -169,6 +193,79 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
           })}
           {f.selectedProducts.length > 0 && (
             <button onClick={() => sF((p) => ({ ...p, selectedProducts: [], selectedPackage: null }))} style={{ ...b2, padding: '8px 14px', fontSize: 10, color: 'var(--text-muted)' }}>CLEAR ALL</button>
+          )}
+        </div>
+      </div>
+
+      {/* ── OUTBOARD WARRANTY SELECTOR ── */}
+      <div style={card}>
+        <div style={{ ...cH, background: '#eff6ff', borderBottomColor: '#bfdbfe' }}>
+          <span style={{ color: '#2563eb' }}>OUTBOARD EXTENDED WARRANTY</span>
+        </div>
+        <div style={{ padding: 14 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ minWidth: 110 }}>
+              <label style={lbl}>BRAND</label>
+              <select value={wBrand} onChange={(e) => { setWBrand(e.target.value); setWPlan(''); setWHpGroup(''); setWTerm(''); }} style={inp}>
+                <option value="">— Select —</option>
+                {WARRANTY_BRANDS.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+            {wBrand && (
+              <div style={{ minWidth: 160 }}>
+                <label style={lbl}>PLAN</label>
+                <select value={wPlan} onChange={(e) => { setWPlan(e.target.value); setWTerm(''); }} style={inp}>
+                  <option value="">— Select —</option>
+                  {wPlans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            )}
+            {wPlan && (
+              <div style={{ minWidth: 90 }}>
+                <label style={lbl}>CONDITION</label>
+                <select value={wCondition} onChange={(e) => { setWCondition(e.target.value); setWTerm(''); }} style={inp}>
+                  <option value="new">New</option>
+                  <option value="used">Used</option>
+                </select>
+              </div>
+            )}
+            {wPlan && (
+              <div style={{ minWidth: 140 }}>
+                <label style={lbl}>HP GROUP</label>
+                <select value={wHpGroup} onChange={(e) => { setWHpGroup(e.target.value); setWTerm(''); }} style={inp}>
+                  <option value="">— Select —</option>
+                  {wHpGroups.map((g) => <option key={g.id} value={g.id}>{g.label}</option>)}
+                </select>
+              </div>
+            )}
+            {wHpGroup && wTerms.length > 0 && (
+              <div style={{ minWidth: 120 }}>
+                <label style={lbl}>TERM</label>
+                <select value={wTerm} onChange={(e) => setWTerm(e.target.value)} style={inp}>
+                  <option value="">— Select —</option>
+                  {wTerms.map((t) => <option key={t.termMonths} value={t.termMonths}>{t.termLabel} — ${t.retailPrice}</option>)}
+                </select>
+              </div>
+            )}
+            {wSelectedRate && (
+              <button onClick={addWarrantyProduct} style={{ ...b1, padding: '8px 16px' }}>ADD ${wSelectedRate.retailPrice}</button>
+            )}
+          </div>
+          {wSelectedRate && showCost && (
+            <div style={{ marginTop: 8, fontFamily: FM, fontSize: 10, color: '#16a34a' }}>
+              Cost: ${wSelectedRate.dealerCost} | Gross: ${wSelectedRate.retailPrice - wSelectedRate.dealerCost}
+            </div>
+          )}
+          {/* Show any already-added warranty products */}
+          {f.selectedProducts.filter((p) => p._isWarranty).length > 0 && (
+            <div style={{ marginTop: 10, borderTop: '1px solid var(--border-secondary)', paddingTop: 8 }}>
+              {f.selectedProducts.filter((p) => p._isWarranty).map((p) => (
+                <div key={p.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                  <span style={{ fontFamily: FM, fontSize: 11, color: '#2563eb', fontWeight: 600 }}>{'\u2713'} {p.name} — ${p.retailPrice}</span>
+                  <button onClick={() => sF((prev) => ({ ...prev, selectedProducts: prev.selectedProducts.filter((x) => x.productId !== p.productId) }))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>{'\u2715'}</button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </div>

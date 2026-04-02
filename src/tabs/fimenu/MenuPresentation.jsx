@@ -48,8 +48,8 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
               ${step.recommended ? '<span style="font-size:9px;color:#d97706;font-weight:700;">★ RECOMMENDED</span>' : ''}
             </div>
             <div style="text-align:right;">
-              <div style="font-family:Oswald;font-size:28px;font-weight:700;color:${brand};">$${step.summary.withProductsPayment.toFixed(2)}/mo</div>
-              <div style="font-size:10px;color:#94a3b8;">+$${increase.toFixed(2)}/mo from ${i === 0 ? 'base' : 'previous'}</div>
+              <div style="font-family:Oswald;font-size:28px;font-weight:700;color:#d97706;">+$${increase.toFixed(0)}/mo</div>
+              <div style="font-size:10px;color:#94a3b8;">$${step.summary.withProductsPayment.toFixed(2)}/mo total</div>
             </div>
           </div>
           <div style="font-size:10px;color:#64748b;margin-bottom:6px;">INCLUDED PROTECTIONS:</div>
@@ -205,13 +205,13 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
                   </div>
                 </div>
 
-                {/* Right: Payment */}
+                {/* Right: Payment — step-up BIG, total smaller */}
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 700, color: 'var(--brand-red)', lineHeight: 1 }}>
-                    ${step.summary.withProductsPayment.toFixed(2)}/mo
+                  <div style={{ fontFamily: FH, fontSize: 32, fontWeight: 700, color: '#d97706', lineHeight: 1 }}>
+                    +${increase.toFixed(0)}/mo
                   </div>
-                  <div style={{ fontFamily: FM, fontSize: 10, color: '#d97706', fontWeight: 600, marginTop: 2 }}>
-                    +${increase.toFixed(2)}/mo from {i === 0 ? 'base' : steps[i - 1].name}
+                  <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                    ${step.summary.withProductsPayment.toFixed(2)}/mo total
                   </div>
                 </div>
               </div>
