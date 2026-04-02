@@ -87,6 +87,11 @@ export function canViewFiMenuCost(currentUser) {
   return isManager(currentUser.role) || isFinanceRole(currentUser.role);
 }
 
+export function canManagePromos(currentUser) {
+  if (!currentUser) return false;
+  return isManager(currentUser.role) || isFinanceRole(currentUser.role);
+}
+
 export function canEditGoals(currentUser) {
   if (!currentUser) return false;
   return isManager(currentUser.role);

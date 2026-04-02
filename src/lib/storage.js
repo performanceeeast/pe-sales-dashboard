@@ -431,6 +431,8 @@ function rowToMonthData(row) {
     priceList: row.price_list || [],
     fiMenus: row.fi_menus || [],
     fiMenuConfig: row.fi_menu_config || {},
+    promoRecords: row.promo_records || [],
+    pricingRecords: row.pricing_records || [],
   };
 }
 
@@ -462,6 +464,8 @@ function monthDataToRow(year, month, data) {
     price_list: data.priceList || data.price_list || [],
     fi_menus: data.fiMenus || data.fi_menus || [],
     fi_menu_config: data.fiMenuConfig || data.fi_menu_config || {},
+    promo_records: data.promoRecords || data.promo_records || [],
+    pricing_records: data.pricingRecords || data.pricing_records || [],
   };
 }
 

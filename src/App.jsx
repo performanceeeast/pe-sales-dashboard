@@ -63,6 +63,8 @@ export default function App() {
   const [fiTargets, setFiTargets] = useState({});
   const [fiMenus, setFiMenus] = useState([]);
   const [fiMenuConfig, setFiMenuConfig] = useState({});
+  const [promoRecords, setPromoRecords] = useState([]);
+  const [pricingRecords, setPricingRecords] = useState([]);
   const [gsmBonusConfig, setGsmBonusConfig] = useState({});
   const [promos, setPromos] = useState([]);
   const [priceList, setPriceList] = useState([]);
@@ -132,6 +134,8 @@ export default function App() {
         setFiTargets(data.fiTargets || {});
         setFiMenus(data.fiMenus || []);
         setFiMenuConfig(data.fiMenuConfig || {});
+        setPromoRecords(data.promoRecords || []);
+        setPricingRecords(data.pricingRecords || []);
         setGsmBonusConfig(data.gsmBonusConfig || {});
         setPromos(data.promos || []);
         setPriceList(data.priceList || []);
@@ -141,6 +145,7 @@ export default function App() {
         setNotes([]); setMeetingNotes([]); setGoogleReviews({}); setGsmChecklist({}); setFiKpis({}); setFiChecklist({}); setFiDeals([]); setFiTargets({}); setGsmBonusConfig({});
         setPromos([]); setPriceList([]);
         setFiMenus([]); setFiMenuConfig({});
+        setPromoRecords([]); setPricingRecords([]);
       }
       const yd = await loadYear(storeId, year);
       const aL = [], aD = [], aFL = [];
@@ -162,7 +167,7 @@ export default function App() {
       deals, leads, floorLeads, goals, sp: spList, pga: pgaTiers, be: beSpiffs,
       hitList, contests, dailyLeadCounts, bulkLeadCounts,
       floorDailyLeadCounts, floorBulkLeadCounts, notes, meetingNotes, googleReviews,
-      gsmChecklist, fiKpis, fiChecklist, fiDeals, fiTargets, gsmBonusConfig, promos, priceList, fiMenus, fiMenuConfig,
+      gsmChecklist, fiKpis, fiChecklist, fiDeals, fiTargets, gsmBonusConfig, promos, priceList, fiMenus, fiMenuConfig, promoRecords, pricingRecords,
       ...overrides,
     };
   }
@@ -203,6 +208,8 @@ export default function App() {
   function savePriceList(p) { updateAndSave(setPriceList, 'priceList', p); }
   function saveFiMenus(f) { updateAndSave(setFiMenus, 'fiMenus', f); }
   function saveFiMenuConfig(f) { updateAndSave(setFiMenuConfig, 'fiMenuConfig', f); }
+  function savePromoRecords(p) { updateAndSave(setPromoRecords, 'promoRecords', p); }
+  function savePricingRecords(p) { updateAndSave(setPricingRecords, 'pricingRecords', p); }
 
   async function loadHistory(yr) { setHistoryLoading(true); setHistoryData(await loadYear(storeId, yr)); setHistoryYear(yr); setHistoryLoading(false); }
   async function saveHistoryMonth(yr, mo, overrides) {
@@ -323,7 +330,7 @@ export default function App() {
           {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} />}
           {salesSub === 'board' && <LeaderboardTab month={month} year={year} deals={deals} act={act} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} setSelRep={setSelRep} unitTypes={unitTypes} />}
           {salesSub === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
-          {salesSub === 'pricing' && <PromosTab currentUser={currentUser} />}
+          {salesSub === 'pricing' && <PromosTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} promoRecords={promoRecords} savePromoRecords={savePromoRecords} pricingRecords={pricingRecords} savePricingRecords={savePricingRecords} />}
         </div>
       )}
 
