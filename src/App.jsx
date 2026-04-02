@@ -335,7 +335,7 @@ export default function App() {
           {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} />}
           {salesSub === 'board' && <LeaderboardTab month={month} year={year} deals={deals} act={act} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} setSelRep={setSelRep} unitTypes={unitTypes} />}
           {salesSub === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
-          {salesSub === 'inventory' && <InventoryTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} inventoryItems={inventoryItems} saveInventoryItems={saveInventoryItems} />}
+          {salesSub === 'inventory' && <InventoryTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} inventoryItems={inventoryItems} saveInventoryItems={saveInventoryItems} promoRecords={promoRecords} pricingRecords={pricingRecords} />}
           {salesSub === 'pricing' && <PromosTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} promoRecords={promoRecords} savePromoRecords={savePromoRecords} pricingRecords={pricingRecords} savePricingRecords={savePricingRecords} />}
         </div>
       )}
