@@ -48,21 +48,36 @@ export function canEditDeal(currentUser, deal) {
 
 export function canSeeTab(currentUser, tab, storeConfig) {
   if (!currentUser) return false;
-  if (isManager(currentUser.role)) return true;
 
   switch (tab) {
     case 'dashboard': return true;
     case 'deals': return true;
-    case 'leads': return storeConfig?.has_ism !== false && currentUser.role !== 'salesperson';
-    case 'floor': return currentUser.role !== 'salesperson';
     case 'board': return true;
-    case 'goals': return false; // managers only (handled by isManager above)
-    case 'crm': return currentUser.role === 'admin';
     case 'promos': return true;
     case 'history': return true;
-    case 'gsmDash': return false; // managers only
-    case 'financeDash': return isFinanceRole(currentUser.role);
     case 'docs': return true;
+
+    // CRM — admin only (testing phase)
+    case 'crm': return currentUser.role === 'admin';
+
+    // ISM — only for stores with ISM, not for salespeople
+    case 'leads': return storeConfig?.has_ism !== false && currentUser.role !== 'salesperson' && (isManager(currentUser.role) || currentUser.role === 'ism');
+
+    // Floor traffic — managers + ISM
+    case 'floor': return isManager(currentUser.role) || currentUser.role === 'ism';
+
+    // Goals — managers only
+    case 'goals': return isManager(currentUser.role);
+
+    // GSM Dash — managers only, hidden for stores without ISM (use combined view)
+    case 'gsmDash': return isManager(currentUser.role) && storeConfig?.has_ism !== false;
+
+    // F&I Dash — finance roles + managers, hidden for stores without ISM (use combined view)
+    case 'financeDash': return (isManager(currentUser.role) || isFinanceRole(currentUser.role)) && storeConfig?.has_ism !== false;
+
+    // Combined Sales/Finance Manager Dash — only for stores WITHOUT ISM (Cedar Point)
+    case 'mgrDash': return isManager(currentUser.role) && storeConfig?.has_ism === false;
+
     default: return true;
   }
 }

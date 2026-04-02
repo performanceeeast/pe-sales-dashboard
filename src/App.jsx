@@ -287,6 +287,7 @@ export default function App() {
     ['promos', 'PRICING & PROMOS', 'PRICING', 'mgmt'],
     ['gsmDash', 'GSM', 'GSM', 'mgmt'],
     ['financeDash', 'F&I', 'F&I', 'mgmt'],
+    ['mgrDash', 'MANAGER', 'MGR', 'mgmt'],
     ['history', 'HISTORY', 'HIST', 'mgmt'],
   ];
   const tabs = allTabs.filter(([k]) => canSeeTab(currentUser, k, storeConfig));
@@ -329,6 +330,14 @@ export default function App() {
       {!showAdmin && view === 'promos' && <PromosTab currentUser={currentUser} />}
       {!showAdmin && view === 'gsmDash' && <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />}
       {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} />}
+      {!showAdmin && view === 'mgrDash' && (
+        <div>
+          <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />
+          <div style={{ marginTop: 16 }}>
+            <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} />
+          </div>
+        </div>
+      )}
       {!showAdmin && view === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
     </>
   );
