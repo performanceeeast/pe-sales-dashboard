@@ -23,6 +23,7 @@ import GSMDashTab from './tabs/GSMDashTab';
 import FIDashTab from './tabs/FIDashTab';
 import CRMTab from './tabs/crm/index';
 import PromosTab from './tabs/PromosTab';
+import InventoryTab from './tabs/InventoryTab';
 import SimpleLeadsTab from './tabs/SimpleLeadsTab';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = styles;
@@ -65,6 +66,7 @@ export default function App() {
   const [fiMenuConfig, setFiMenuConfig] = useState({});
   const [promoRecords, setPromoRecords] = useState([]);
   const [pricingRecords, setPricingRecords] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
   const [gsmBonusConfig, setGsmBonusConfig] = useState({});
   const [promos, setPromos] = useState([]);
   const [priceList, setPriceList] = useState([]);
@@ -136,6 +138,7 @@ export default function App() {
         setFiMenuConfig(data.fiMenuConfig || {});
         setPromoRecords(data.promoRecords || []);
         setPricingRecords(data.pricingRecords || []);
+        setInventoryItems(data.inventoryItems || []);
         setGsmBonusConfig(data.gsmBonusConfig || {});
         setPromos(data.promos || []);
         setPriceList(data.priceList || []);
@@ -146,6 +149,7 @@ export default function App() {
         setPromos([]); setPriceList([]);
         setFiMenus([]); setFiMenuConfig({});
         setPromoRecords([]); setPricingRecords([]);
+        setInventoryItems([]);
       }
       const yd = await loadYear(storeId, year);
       const aL = [], aD = [], aFL = [];
@@ -167,7 +171,7 @@ export default function App() {
       deals, leads, floorLeads, goals, sp: spList, pga: pgaTiers, be: beSpiffs,
       hitList, contests, dailyLeadCounts, bulkLeadCounts,
       floorDailyLeadCounts, floorBulkLeadCounts, notes, meetingNotes, googleReviews,
-      gsmChecklist, fiKpis, fiChecklist, fiDeals, fiTargets, gsmBonusConfig, promos, priceList, fiMenus, fiMenuConfig, promoRecords, pricingRecords,
+      gsmChecklist, fiKpis, fiChecklist, fiDeals, fiTargets, gsmBonusConfig, promos, priceList, fiMenus, fiMenuConfig, promoRecords, pricingRecords, inventoryItems,
       ...overrides,
     };
   }
@@ -210,6 +214,7 @@ export default function App() {
   function saveFiMenuConfig(f) { updateAndSave(setFiMenuConfig, 'fiMenuConfig', f); }
   function savePromoRecords(p) { updateAndSave(setPromoRecords, 'promoRecords', p); }
   function savePricingRecords(p) { updateAndSave(setPricingRecords, 'pricingRecords', p); }
+  function saveInventoryItems(i) { updateAndSave(setInventoryItems, 'inventoryItems', i); }
 
   async function loadHistory(yr) { setHistoryLoading(true); setHistoryData(await loadYear(storeId, yr)); setHistoryYear(yr); setHistoryLoading(false); }
   async function saveHistoryMonth(yr, mo, overrides) {
@@ -317,7 +322,7 @@ export default function App() {
       {!showAdmin && view === 'sales' && (
         <div>
           <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
-            {[{ id: 'deals', label: 'DEALS' }, { id: 'board', label: 'LEADERBOARD' }, { id: 'history', label: 'HISTORY' }, { id: 'pricing', label: 'PRICING' }].map((v) => (
+            {[{ id: 'deals', label: 'DEALS' }, { id: 'board', label: 'LEADERBOARD' }, { id: 'inventory', label: 'INVENTORY' }, { id: 'pricing', label: 'PRICING' }, { id: 'history', label: 'HISTORY' }].map((v) => (
               <button key={v.id} onClick={() => setSalesSub(v.id)} style={{
                 padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
                 fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
@@ -330,6 +335,7 @@ export default function App() {
           {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} />}
           {salesSub === 'board' && <LeaderboardTab month={month} year={year} deals={deals} act={act} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} setSelRep={setSelRep} unitTypes={unitTypes} />}
           {salesSub === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
+          {salesSub === 'inventory' && <InventoryTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} inventoryItems={inventoryItems} saveInventoryItems={saveInventoryItems} />}
           {salesSub === 'pricing' && <PromosTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} promoRecords={promoRecords} savePromoRecords={savePromoRecords} pricingRecords={pricingRecords} savePricingRecords={savePricingRecords} />}
         </div>
       )}
