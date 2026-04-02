@@ -42,7 +42,10 @@ export default function LoginScreen({ onLogin, storeId, storeTheme, onChangeStor
     <div style={{ fontFamily: FB, background: 'var(--bg-primary)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: 'var(--card-bg)', borderRadius: 12, padding: 32, width: 340, border: '1px solid var(--border-primary)', boxShadow: 'var(--shadow-lg)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <img src={storeTheme?.logo || '/logo.png'} alt="Performance East" style={{ height: 50, marginBottom: 12 }} />
+          <img src={storeTheme?.logo || '/logo.png'} alt="Performance East" style={{
+            height: 50, marginBottom: 12,
+            filter: storeId === 'cedar_point' ? 'brightness(0) saturate(100%) invert(18%) sepia(30%) saturate(1500%) hue-rotate(190deg) brightness(95%)' : 'none',
+          }} />
           <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2 }}>SALES PORTAL</div>
           {onChangeStore && (
             <button onClick={onChangeStore} style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6, textDecoration: 'underline' }}>Change Store</button>
