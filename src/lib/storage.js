@@ -75,7 +75,10 @@ export async function loadYear(storeId, year) {
 export async function loadUsers(storeId) {
   try {
     let q = supabase.from('crm_users').select('*').order('name');
-    if (storeId) q = q.eq('store_id', storeId);
+    if (storeId) {
+      // Get users for this store + all admins (admins access both stores)
+      q = q.or(`store_id.eq.${storeId},role.eq.admin`);
+    }
     const { data, error } = await q;
     if (error) throw error;
     return data || [];
