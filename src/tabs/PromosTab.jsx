@@ -227,9 +227,7 @@ export default function PromosTab({ month, year, promos, savePromos, priceList, 
     <div>
       {/* ═══ DOCUMENT LIBRARY (Pricing & Current Promo Sheets) ═══ */}
 
-      {/* REMOVED: Promotions view */}
-      {false && /* ═══ PROMOTIONS VIEW ═══ */}
-      {tab === 'promos' && (
+      {false && tab === 'promos' && (
         <div>
           {/* Active Promos */}
           <div style={{ fontFamily: FH, fontSize: 12, fontWeight: 700, color: '#16a34a', letterSpacing: 1, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -361,8 +359,7 @@ export default function PromosTab({ month, year, promos, savePromos, priceList, 
       )}
 
       {/* ═══ DOCUMENT LIBRARY VIEW ═══ */}
-      {(
-        <div>
+      <div>
           {/* Upload bar */}
           {isManager && (
             <div style={{ ...card, padding: '14px 18px', marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -454,7 +451,7 @@ export default function PromosTab({ month, year, promos, savePromos, priceList, 
             </div>
           )}
         </div>
-      )}
+      </div>
 
       {/* ═══ EXCEL PREVIEW MODAL ═══ */}
       <Modal open={modal === 'excelPreview'} onClose={() => { setModal(null); setExcelPreview(null); }} title={'Excel File: ' + (excelPreview?.fileName || '')} wide>
