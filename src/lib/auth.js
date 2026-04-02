@@ -81,9 +81,6 @@ export function canSeeTab(currentUser, tab, storeConfig) {
     // Simple leads tab — only for stores WITHOUT ISM (Cedar Point), managers only
     case 'simpleLeads': return isManager(currentUser.role) && storeConfig?.has_ism === false;
 
-    // F&I Menu — all roles except ISM-only (everyone can build menus, settings restricted separately)
-    case 'fiMenu': return isManager(currentUser.role) || isFinanceRole(currentUser.role) || currentUser.role === 'salesperson';
-
     default: return true;
   }
 }

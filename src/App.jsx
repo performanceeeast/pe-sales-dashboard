@@ -23,7 +23,6 @@ import GSMDashTab from './tabs/GSMDashTab';
 import FIDashTab from './tabs/FIDashTab';
 import CRMTab from './tabs/crm/index';
 import PromosTab from './tabs/PromosTab';
-import FIMenuTab from './tabs/fimenu/FIMenuTab';
 import SimpleLeadsTab from './tabs/SimpleLeadsTab';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = styles;
@@ -290,7 +289,6 @@ export default function App() {
     ['goals', 'GOALS', 'GOALS', 'mgmt'],
     ['promos', 'PRICING & PROMOS', 'PRICING', 'mgmt'],
     ['gsmDash', 'GSM', 'GSM', 'mgmt'],
-    ['fiMenu', 'F&I MENU', 'MENU', 'mgmt'],
     ['financeDash', 'F&I', 'F&I', 'mgmt'],
     ['simpleLeads', 'LEADS', 'LEADS', 'leads'],
     ['mgrDash', 'MANAGER', 'MGR', 'mgmt'],
@@ -335,14 +333,13 @@ export default function App() {
       {!showAdmin && view === 'goals' && <GoalsTab goals={goals} tot={tot} tTgt={tTgt} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} contests={contests} spList={spList} act={act} modal={modal} setModal={setModal} saveGoals={saveGoals} saveReps={saveReps} savePga={savePga} saveBe={saveBe} saveHL={saveHL} saveCT={saveCT} unitTypes={unitTypes} />}
       {!showAdmin && view === 'promos' && <PromosTab currentUser={currentUser} />}
       {!showAdmin && view === 'gsmDash' && <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />}
-      {!showAdmin && view === 'fiMenu' && <FIMenuTab month={month} year={year} deals={deals} fiDeals={fiDeals} currentUser={currentUser} act={act} storeConfig={storeConfig} backEndProducts={backEndProducts} storeTheme={storeTheme} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />}
-      {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} />}
+      {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} act={act} storeConfig={storeConfig} storeTheme={storeTheme} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />}
       {!showAdmin && view === 'simpleLeads' && <SimpleLeadsTab month={month} year={year} deals={deals} act={act} dailyLeadCounts={dailyLeadCounts} saveDLC={saveDLC} floorDailyLeadCounts={floorDailyLeadCounts} saveFloorDLC={saveFloorDLC} />}
       {!showAdmin && view === 'mgrDash' && (
         <div>
           <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />
           <div style={{ marginTop: 16 }}>
-            <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} />
+            <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} act={act} storeConfig={storeConfig} storeTheme={storeTheme} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />
           </div>
         </div>
       )}

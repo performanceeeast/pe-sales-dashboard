@@ -2,93 +2,135 @@ import React from 'react';
 import { calcDealSummary } from '../../lib/fiMenuCalc';
 import { styles, FM, FH, FB } from '../../components/SharedUI';
 
-const { btn1: b1, btn2: b2 } = styles;
+const { card, cardHead: cH, btn1: b1, btn2: b2 } = styles;
 
 export default function MenuPresentation({ menu, packages, products, onBack, storeTheme }) {
   if (!menu) return null;
 
-  // Build package columns for presentation (up to 3: Silver/Gold/Platinum or equivalent)
+  // Build stepped packages sorted by product count (fewest → most = lowest → highest payment)
   const presentPackages = (packages || [])
     .filter((pkg) => pkg.products.length > 0)
-    .sort((a, b) => (b.displayOrder || 0) - (a.displayOrder || 0)) // Highest first = most products
-    .slice(0, 3)
-    .reverse(); // Display left-to-right: Basic → Premium
-
-  // Also add a "Cash / No Products" option
-  const baseSummary = calcDealSummary(
-    { salePrice: menu.salePrice || 0, accessories: menu.accessories || 0, freightPrep: menu.freightPrep || 0, docFee: menu.docFee || 0, downPayment: menu.downPayment || 0, tradeAllowance: menu.tradeAllowance || 0, tradePayoff: menu.tradePayoff || 0, apr: menu.apr || 0, term: menu.term || 60 },
-    [], menu.taxRate || 0
-  );
+    .sort((a, b) => a.products.length - b.products.length);
 
   // Calculate summary for each package
-  const packageSummaries = presentPackages.map((pkg) => {
+  const dealBase = {
+    salePrice: menu.salePrice || 0, accessories: menu.accessories || 0,
+    freightPrep: menu.freightPrep || 0, docFee: menu.docFee || 0,
+    downPayment: menu.downPayment || 0, tradeAllowance: menu.tradeAllowance || 0,
+    tradePayoff: menu.tradePayoff || 0, apr: menu.apr || 0, term: menu.term || 60,
+  };
+
+  const baseSummary = calcDealSummary(dealBase, [], menu.taxRate || 0);
+
+  const steps = presentPackages.map((pkg) => {
     const pkgProducts = pkg.products.map((pid) => {
       const p = products.find((x) => x.id === pid);
       if (!p) return null;
       return { productId: p.id, name: p.name, retailPrice: p.retailPrice, cost: p.cost, financeable: p.financeable, taxable: p.taxable, description: p.description };
     }).filter(Boolean);
-
-    const summary = calcDealSummary(
-      { salePrice: menu.salePrice || 0, accessories: menu.accessories || 0, freightPrep: menu.freightPrep || 0, docFee: menu.docFee || 0, downPayment: menu.downPayment || 0, tradeAllowance: menu.tradeAllowance || 0, tradePayoff: menu.tradePayoff || 0, apr: menu.apr || 0, term: menu.term || 60 },
-      pkgProducts, menu.taxRate || 0
-    );
-
+    const summary = calcDealSummary(dealBase, pkgProducts, menu.taxRate || 0);
     return { ...pkg, products: pkgProducts, summary };
   });
 
+  // For print: build the stepped payment HTML
   function handlePrint() {
     const logo = storeTheme?.logo || '/logo.png';
     const brand = storeTheme?.brand_primary || '#b91c1c';
-    const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) return;
 
-    const cols = packageSummaries.map((pkg) => `
-      <div style="flex:1;min-width:200px;border:1px solid #e2e8f0;border-radius:8px;padding:20px;${pkg.recommended ? `border-color:${brand};border-width:2px;` : ''}">
-        <div style="text-align:center;margin-bottom:16px;">
-          <div style="font-size:10px;color:${pkg.color || '#6b7280'};font-weight:700;letter-spacing:2px;text-transform:uppercase;">${pkg.name}</div>
-          ${pkg.recommended ? '<div style="font-size:9px;color:#d97706;font-weight:700;margin-top:4px;">★ RECOMMENDED</div>' : ''}
-          <div style="font-size:32px;font-weight:700;color:${brand};margin:12px 0;">$${pkg.summary.withProductsPayment.toFixed(2)}</div>
-          <div style="font-size:11px;color:#64748b;">per month / ${menu.term} months</div>
+    const stepsHtml = steps.map((step, i) => {
+      const prevPayment = i === 0 ? baseSummary.basePayment : steps[i - 1].summary.withProductsPayment;
+      const increase = step.summary.withProductsPayment - prevPayment;
+      return `
+        <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;${step.recommended ? `border-color:${brand};border-width:2px;` : ''}margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div>
+              <div style="font-family:Oswald;font-size:13px;font-weight:700;color:${step.color || '#333'};">${step.name.toUpperCase()}</div>
+              ${step.recommended ? '<span style="font-size:9px;color:#d97706;font-weight:700;">★ RECOMMENDED</span>' : ''}
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:Oswald;font-size:28px;font-weight:700;color:${brand};">$${step.summary.withProductsPayment.toFixed(2)}/mo</div>
+              <div style="font-size:10px;color:#94a3b8;">+$${increase.toFixed(2)}/mo from ${i === 0 ? 'base' : 'previous'}</div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:#64748b;margin-bottom:6px;">INCLUDED PROTECTIONS:</div>
+          ${step.products.map((p) => `<div style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:11px;"><span style="color:#16a34a;">✓</span> ${p.name}</div>`).join('')}
         </div>
-        <div style="border-top:1px solid #e2e8f0;padding-top:12px;">
-          <div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:1px;margin-bottom:8px;">INCLUDED PROTECTIONS</div>
-          ${pkg.products.map((p) => `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:11px;"><span style="color:#16a34a;">✓</span> ${p.name}</div>`).join('')}
+      `;
+    }).join('');
+
+    // Declination section
+    const allProductNames = [...new Set(steps.flatMap((s) => s.products.map((p) => p.name)))];
+    const declinationHtml = `
+      <div style="margin-top:24px;padding-top:16px;border-top:2px solid #1e293b;">
+        <div style="font-family:Oswald;font-size:14px;font-weight:700;margin-bottom:8px;">OPTIONAL COVERAGE ACKNOWLEDGEMENT</div>
+        <div style="font-size:11px;color:#1e293b;line-height:1.6;margin-bottom:12px;">
+          I, the undersigned customer, acknowledge that the following optional protection products were offered and explained to me
+          in connection with my purchase. I understand that by declining any or all of these products, I may be responsible for costs
+          that would otherwise be covered by such protection. I have made my decision voluntarily and without pressure.
         </div>
-        <div style="margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0;font-size:10px;color:#64748b;">
-          Amount Financed: $${pkg.summary.withProductsFinanced.toLocaleString()}<br/>
-          Only +$${pkg.summary.paymentDifference.toFixed(2)}/mo over base
+        <div style="font-size:10px;color:#64748b;margin-bottom:8px;">PRODUCTS OFFERED:</div>
+        ${allProductNames.map((name) => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;">
+          <span style="display:inline-block;width:14px;height:14px;border:1px solid #94a3b8;border-radius:2px;"></span> ${name}
+          <span style="margin-left:auto;display:flex;gap:12px;">
+            <span style="font-size:9px;color:#64748b;">☐ ACCEPT</span>
+            <span style="font-size:9px;color:#64748b;">☐ DECLINE</span>
+          </span>
+        </div>`).join('')}
+        <div style="margin-top:20px;">
+          <div style="font-size:10px;font-weight:700;color:#1e293b;margin-bottom:4px;">SELECTED PACKAGE:</div>
+          <div style="border-bottom:1px solid #1e293b;height:24px;margin-bottom:16px;"></div>
+        </div>
+        <div style="display:flex;gap:40px;margin-top:16px;">
+          <div style="flex:1;">
+            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
+            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Customer Signature</div>
+          </div>
+          <div style="flex:1;">
+            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
+            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Printed Name</div>
+          </div>
+          <div style="width:120px;">
+            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
+            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Date</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:40px;margin-top:16px;">
+          <div style="flex:1;">
+            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
+            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Finance Manager Signature</div>
+          </div>
+          <div style="width:120px;">
+            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
+            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Date</div>
+          </div>
         </div>
       </div>
-    `).join('');
+    `;
 
+    const w = window.open('', '_blank', 'width=800,height=900');
+    if (!w) return;
     w.document.write(`<!DOCTYPE html><html><head><title>Finance Menu - ${menu.customer}</title>
       <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-      </head><body style="font-family:Outfit,sans-serif;padding:30px;color:#1e293b;max-width:900px;margin:0 auto;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid ${brand};">
-        <div><img src="${logo}" style="height:40px;" onerror="this.style.display='none'"/></div>
-        <div style="text-align:right;"><div style="font-family:Oswald;font-size:14px;font-weight:700;color:${brand};">FINANCE MENU</div><div style="font-size:11px;color:#94a3b8;">${menu.date}</div></div>
+      </head><body style="font-family:Outfit,sans-serif;padding:30px;color:#1e293b;max-width:800px;margin:0 auto;font-size:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;padding-bottom:12px;border-bottom:3px solid ${brand};">
+        <img src="${logo}" style="height:36px;" onerror="this.style.display='none'"/>
+        <div style="text-align:right;"><div style="font-family:Oswald;font-size:12px;font-weight:700;color:${brand};">FINANCE & PROTECTION MENU</div><div style="font-size:10px;color:#94a3b8;">${menu.date}</div></div>
       </div>
-      <div style="margin-bottom:20px;">
-        <div style="font-family:Oswald;font-size:18px;font-weight:700;">${menu.customer}</div>
-        <div style="font-size:11px;color:#64748b;">${menu.year || ''} ${menu.make || ''} ${menu.model || ''} ${menu.vin ? '| VIN: ' + menu.vin : ''}</div>
-        <div style="font-size:11px;color:#64748b;">Sale Price: $${(menu.salePrice || 0).toLocaleString()} | Down: $${(menu.downPayment || 0).toLocaleString()} | ${menu.lender || 'TBD'} @ ${menu.apr || 0}%</div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
+        <div><div style="font-family:Oswald;font-size:16px;font-weight:700;">${menu.customer}</div><div style="font-size:11px;color:#64748b;">${menu.year || ''} ${menu.make || ''} ${menu.model || ''} ${menu.vin ? '| ' + menu.vin : ''}</div></div>
+        <div style="text-align:right;font-size:11px;color:#64748b;">Sale: $${(menu.salePrice || 0).toLocaleString()} | Down: $${(menu.downPayment || 0).toLocaleString()}<br/>${menu.lender || 'TBD'} @ ${menu.apr || 0}% / ${menu.term}mo</div>
       </div>
-      <div style="display:flex;gap:12px;margin-bottom:20px;">
-        <div style="flex:0 0 160px;border:1px solid #e2e8f0;border-radius:8px;padding:20px;text-align:center;background:#f8fafc;">
-          <div style="font-size:10px;color:#94a3b8;font-weight:600;letter-spacing:2px;">CASH / BASE</div>
-          <div style="font-size:28px;font-weight:700;color:#64748b;margin:12px 0;">$${baseSummary.basePayment.toFixed(2)}</div>
-          <div style="font-size:11px;color:#94a3b8;">per month</div>
-          <div style="margin-top:12px;font-size:10px;color:#94a3b8;">No additional protections</div>
-        </div>
-        ${cols}
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:16px;text-align:center;">
+        <div style="font-size:10px;color:#94a3b8;letter-spacing:2px;font-weight:600;">BASE MONTHLY PAYMENT</div>
+        <div style="font-family:Oswald;font-size:32px;font-weight:700;color:#64748b;">$${baseSummary.basePayment.toFixed(2)}/mo</div>
+        <div style="font-size:10px;color:#94a3b8;">No optional protections included</div>
       </div>
-      <div style="font-size:9px;color:#94a3b8;margin-top:24px;padding-top:12px;border-top:1px solid #e2e8f0;">
-        ${menu.disclaimerText || 'All prices and payments are estimates. Final terms subject to lender approval.'}
+      <div style="font-family:Oswald;font-size:11px;font-weight:700;color:#64748b;letter-spacing:2px;margin-bottom:8px;">STEPPED PAYMENT OPTIONS</div>
+      ${stepsHtml}
+      <div style="font-size:9px;color:#94a3b8;margin-top:16px;padding-top:8px;border-top:1px solid #e2e8f0;">
+        ${menu.disclaimerText || 'All prices and payments are estimates. Final terms subject to lender approval. Optional protection products are not required for purchase or financing.'}
       </div>
-      <div style="margin-top:30px;display:flex;gap:40px;">
-        <div style="flex:1;border-top:1px solid #1e293b;padding-top:4px;font-size:10px;color:#94a3b8;">Customer Signature</div>
-        <div style="flex:1;border-top:1px solid #1e293b;padding-top:4px;font-size:10px;color:#94a3b8;">Date</div>
-      </div>
+      ${declinationHtml}
       </body></html>`);
     w.document.close();
     setTimeout(() => w.print(), 500);
@@ -106,69 +148,81 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={onBack} style={b2}>BACK</button>
-          <button onClick={handlePrint} style={b1}>PRINT</button>
+          <button onClick={handlePrint} style={b1}>PRINT MENU</button>
         </div>
       </div>
 
-      {/* Package Columns */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
-        {/* Base / Cash option */}
-        <div style={{
-          flex: '0 0 180px', background: 'var(--bg-tertiary)', borderRadius: 10,
-          border: '1px solid var(--border-primary)', padding: 20, textAlign: 'center',
-        }}>
-          <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2, fontWeight: 600 }}>CASH / BASE</div>
-          <div style={{ fontFamily: FH, fontSize: 32, fontWeight: 700, color: 'var(--text-secondary)', margin: '12px 0', lineHeight: 1 }}>
-            ${baseSummary.basePayment.toFixed(2)}
-          </div>
-          <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>per month</div>
-          <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginTop: 16 }}>No additional protections</div>
+      {/* Base Payment Card */}
+      <div style={{
+        ...card, marginBottom: 12, padding: 20, textAlign: 'center',
+        background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)',
+      }}>
+        <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2, fontWeight: 600 }}>BASE MONTHLY PAYMENT</div>
+        <div style={{ fontFamily: FH, fontSize: 36, fontWeight: 700, color: 'var(--text-secondary)', margin: '8px 0', lineHeight: 1 }}>
+          ${baseSummary.basePayment.toFixed(2)}/mo
         </div>
+        <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>No optional protections included</div>
+      </div>
 
-        {/* Package columns */}
-        {packageSummaries.map((pkg) => (
-          <div key={pkg.id} style={{
-            flex: 1, minWidth: 220, borderRadius: 10, padding: 20, textAlign: 'center',
-            border: pkg.recommended ? `2px solid var(--brand-red)` : '1px solid var(--border-primary)',
-            background: pkg.recommended ? 'var(--brand-red-soft)' : 'var(--card-bg)',
-            position: 'relative',
-          }}>
-            {pkg.recommended && (
-              <div style={{
-                position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
-                fontFamily: FM, fontSize: 8, fontWeight: 700, color: 'var(--text-inverse)',
-                background: 'var(--brand-red)', padding: '2px 10px', borderRadius: 3, letterSpacing: 1,
-              }}>RECOMMENDED</div>
-            )}
-            <div style={{ fontFamily: FM, fontSize: 10, color: pkg.color || 'var(--text-muted)', letterSpacing: 2, fontWeight: 700 }}>{pkg.name.toUpperCase()}</div>
-            <div style={{ fontFamily: FH, fontSize: 36, fontWeight: 700, color: 'var(--brand-red)', margin: '12px 0', lineHeight: 1 }}>
-              ${pkg.summary.withProductsPayment.toFixed(2)}
-            </div>
-            <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>per month / {menu.term} months</div>
+      {/* Stepped Payment Options */}
+      <div style={{ fontFamily: FH, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 2, marginBottom: 8 }}>STEPPED PAYMENT OPTIONS</div>
 
-            <div style={{ borderTop: '1px solid var(--border-primary)', marginTop: 16, paddingTop: 12, textAlign: 'left' }}>
-              <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: 1, marginBottom: 8 }}>INCLUDED PROTECTIONS</div>
-              {pkg.products.map((p) => (
-                <div key={p.productId} style={{ display: 'flex', alignItems: 'flex-start', gap: 6, padding: '4px 0' }}>
-                  <span style={{ color: '#16a34a', fontSize: 12, flexShrink: 0 }}>{'\u2713'}</span>
-                  <div>
-                    <div style={{ fontFamily: FM, fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</div>
-                    <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>{p.description}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        {steps.map((step, i) => {
+          const prevPayment = i === 0 ? baseSummary.basePayment : steps[i - 1].summary.withProductsPayment;
+          const increase = step.summary.withProductsPayment - prevPayment;
+
+          return (
+            <div key={step.id} style={{
+              ...card, padding: '16px 20px',
+              border: step.recommended ? '2px solid var(--brand-red)' : '1px solid var(--border-primary)',
+              background: step.recommended ? 'var(--brand-red-soft)' : 'var(--card-bg)',
+              position: 'relative',
+            }}>
+              {step.recommended && (
+                <div style={{
+                  position: 'absolute', top: -8, right: 16,
+                  fontFamily: FM, fontSize: 8, fontWeight: 700, color: 'var(--text-inverse)',
+                  background: 'var(--brand-red)', padding: '2px 10px', borderRadius: 3, letterSpacing: 1,
+                }}>RECOMMENDED</div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                {/* Left: Package name + products */}
+                <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <div style={{ width: 4, height: 28, borderRadius: 2, background: step.color || '#6b7280' }} />
+                    <div style={{ fontFamily: FH, fontSize: 14, fontWeight: 700, color: step.color || 'var(--text-primary)' }}>{step.name.toUpperCase()}</div>
+                    <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>{step.description}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, paddingLeft: 12 }}>
+                    {step.products.map((p) => (
+                      <span key={p.productId} style={{
+                        fontFamily: FM, fontSize: 10, padding: '2px 8px', borderRadius: 3,
+                        background: '#f0fdf4', color: '#16a34a', fontWeight: 600,
+                      }}>{'\u2713'} {p.name}</span>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
 
-            <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--border-secondary)', fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>
-              Only +${pkg.summary.paymentDifference.toFixed(2)}/mo over base
+                {/* Right: Payment */}
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 700, color: 'var(--brand-red)', lineHeight: 1 }}>
+                    ${step.summary.withProductsPayment.toFixed(2)}/mo
+                  </div>
+                  <div style={{ fontFamily: FM, fontSize: 10, color: '#d97706', fontWeight: 600, marginTop: 2 }}>
+                    +${increase.toFixed(2)}/mo from {i === 0 ? 'base' : steps[i - 1].name}
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Disclaimer */}
       <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', padding: '12px 0', borderTop: '1px solid var(--border-primary)' }}>
-        {menu.disclaimerText || 'All prices and payments are estimates. Final terms subject to lender approval.'}
+        {menu.disclaimerText || 'All prices and payments are estimates. Final terms subject to lender approval. Optional protection products are not required for purchase or financing.'}
       </div>
     </div>
   );
