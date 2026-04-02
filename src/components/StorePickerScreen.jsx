@@ -60,10 +60,7 @@ export default function StorePickerScreen() {
                   <img
                     src={theme.logo || '/logo.png'}
                     alt={store.name}
-                    style={{
-                      height: 48, objectFit: 'contain',
-                      filter: store.id === 'cedar_point' ? 'brightness(0) saturate(100%) invert(18%) sepia(30%) saturate(1500%) hue-rotate(190deg) brightness(95%)' : 'none',
-                    }}
+                    style={{ height: 48, objectFit: 'contain' }}
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 </div>
