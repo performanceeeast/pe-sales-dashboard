@@ -5,7 +5,9 @@ import { getSpUnits, getRepSpiffs } from './lib/calculations';
 import { canSeeTab, canManageUsers, ROLES } from './lib/auth';
 import { StatCard, TabTransition, styles, FM, FH, FB } from './components/SharedUI';
 import { useTheme } from './contexts/ThemeContext';
+import { useStore } from './contexts/StoreContext';
 import { useNotifications } from './contexts/NotificationContext';
+import StorePickerScreen from './components/StorePickerScreen';
 import LoginScreen from './components/LoginScreen';
 import AdminPanel from './components/AdminPanel';
 
@@ -28,7 +30,10 @@ const SESSION_KEY = 'peg-auth-session';
 export default function App() {
   const now = new Date();
   const { isDark, toggleTheme } = useTheme();
+  const { currentStore, storeId, storeConfig, storeTheme, setStore, clearStore, stores } = useStore();
   const { notifications, unreadCount, markRead, markAllRead, dismissNotification } = useNotifications();
+  const unitTypes = storeConfig?.unit_types || UNIT_TYPES;
+  const backEndProducts = storeConfig?.back_end_products || ['EXTENDED WARRANTY', 'LIFETIME OIL CHANGE', 'GAP', 'LIFETIME BATTERY'];
   const [showNotifPanel, setShowNotifPanel] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [year, setYear] = useState(now.getFullYear());
@@ -72,25 +77,35 @@ export default function App() {
   const [crmUsers, setCrmUsers] = useState([]);
 
   // ── Session persistence ──
+  const sessionKey = storeId ? `peg-auth-session-${storeId}` : SESSION_KEY;
   useEffect(() => {
     try {
-      const saved = sessionStorage.getItem(SESSION_KEY);
+      const saved = sessionStorage.getItem(sessionKey);
       if (saved) setCurrentUser(JSON.parse(saved));
     } catch {}
-    // Load CRM users (real user accounts from Supabase)
-    loadUsers().then((users) => {
-      if (users.length > 0) setCrmUsers(users);
-    });
-  }, []);
+  }, [sessionKey]);
+
+  // Load CRM users for the selected store
+  useEffect(() => {
+    if (storeId) {
+      loadUsers(storeId).then((users) => {
+        if (users.length > 0) setCrmUsers(users);
+        else {
+          // Fallback: try loading all users (store_id column may not exist yet)
+          loadUsers().then((allUsers) => { if (allUsers.length > 0) setCrmUsers(allUsers); });
+        }
+      });
+    }
+  }, [storeId]);
 
   function handleLogin(user) {
     setCurrentUser(user);
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    sessionStorage.setItem(sessionKey, JSON.stringify(user));
   }
 
   function handleLogout() {
     setCurrentUser(null);
-    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(sessionKey);
     setView('dashboard');
     setShowAdmin(false);
   }
@@ -99,7 +114,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const data = await loadMonth(year, month);
+      const data = await loadMonth(storeId, year, month);
       if (data) {
         setDeals(data.deals || []); setLeads(data.leads || []); setFloorLeads(data.floorLeads || []);
         if (data.goals) setGoals(data.goals); if (data.sp) setSpList(data.sp);
@@ -123,7 +138,7 @@ export default function App() {
         setNotes([]); setMeetingNotes([]); setGoogleReviews({}); setGsmChecklist({}); setFiKpis({}); setFiChecklist({}); setFiDeals([]); setFiTargets({}); setGsmBonusConfig({});
         setPromos([]); setPriceList([]);
       }
-      const yd = await loadYear(year);
+      const yd = await loadYear(storeId, year);
       const aL = [], aD = [], aFL = [];
       yd.forEach((m, i) => {
         if (m) {
@@ -135,7 +150,7 @@ export default function App() {
       setYearlyLeads(aL); setYearlyDeals(aD); setYearlyFloorLeads(aFL); setYearlyMonthData(yd);
       setLoading(false);
     })();
-  }, [year, month]);
+  }, [storeId, year, month]);
 
   // ── Save ──
   function getAllData(overrides = {}) {
@@ -151,7 +166,7 @@ export default function App() {
   function updateAndSave(setter, key, newVal) {
     setter(newVal);
     const data = getAllData({ [key]: newVal });
-    saveMonth(year, month, data);
+    saveMonth(storeId, year, month, data);
   }
 
   // ── Mutators ──
@@ -183,26 +198,26 @@ export default function App() {
   function savePromos(p) { updateAndSave(setPromos, 'promos', p); }
   function savePriceList(p) { updateAndSave(setPriceList, 'priceList', p); }
 
-  async function loadHistory(yr) { setHistoryLoading(true); setHistoryData(await loadYear(yr)); setHistoryYear(yr); setHistoryLoading(false); }
+  async function loadHistory(yr) { setHistoryLoading(true); setHistoryData(await loadYear(storeId, yr)); setHistoryYear(yr); setHistoryLoading(false); }
   async function saveHistoryMonth(yr, mo, overrides) {
-    const existing = await loadMonth(yr, mo) || {};
+    const existing = await loadMonth(storeId, yr, mo) || {};
     const merged = { ...existing, ...overrides };
-    await saveMonth(yr, mo, merged);
+    await saveMonth(storeId, yr, mo, merged);
   }
   useEffect(() => { if (view === 'history') loadHistory(historyYear); }, [view]);
 
   // ── Derived ──
   // Active salespeople — prefer real crm_users accounts, fall back to monthly sp list
   const act = crmUsers.length > 0
-    ? crmUsers.filter((u) => u.active !== false && (u.role === 'salesperson' || u.role === 'ism' || u.role === 'gsm' || u.role === 'admin'))
+    ? crmUsers.filter((u) => u.active !== false && (u.role === 'salesperson' || u.role === 'ism' || u.role === 'gsm' || u.role === 'admin' || u.role === 'sales_finance_mgr'))
     : spList.filter((s) => s.active);
   const tot = useMemo(() => {
-    const t = { ...Object.fromEntries(UNIT_TYPES.map((u) => [u, 0])), total: 0 };
-    deals.forEach((d) => UNIT_TYPES.forEach((u) => { t[u] += d.units?.[u] || 0; }));
-    t.total = UNIT_TYPES.reduce((s, u) => s + t[u], 0); return t;
-  }, [deals]);
-  const tTgt = UNIT_TYPES.reduce((s, u) => s + (goals[u]?.target || 0), 0);
-  const tStr = UNIT_TYPES.reduce((s, u) => s + (goals[u]?.stretch || 0), 0);
+    const t = { ...Object.fromEntries(unitTypes.map((u) => [u, 0])), total: 0 };
+    deals.forEach((d) => unitTypes.forEach((u) => { t[u] += d.units?.[u] || 0; }));
+    t.total = unitTypes.reduce((s, u) => s + t[u], 0); return t;
+  }, [deals, unitTypes]);
+  const tTgt = unitTypes.reduce((s, u) => s + (goals[u]?.target || 0), 0);
+  const tStr = unitTypes.reduce((s, u) => s + (goals[u]?.stretch || 0), 0);
   const ls = useMemo(() => ({ total: leads.length, set: leads.filter((l) => l.apptDate).length, kept: leads.filter((l) => l.showed).length, sold: leads.filter((l) => l.sold).length }), [leads]);
   const floorTrafficStats = useMemo(() => {
     const traffic = floorDailyLeadCounts.reduce((s, d) => s + (d.count || 0), 0) + floorBulkLeadCounts.reduce((s, d) => s + (d.count || 0), 0);
@@ -211,31 +226,36 @@ export default function App() {
 
   const yearlyMonthSales = useMemo(() => MONTHS.map((mName, mIdx) => {
     const mDeals = yearlyDeals.filter((d) => d._month === mIdx);
-    const counts = { month: mName.substring(0, 3), monthIdx: mIdx, ...Object.fromEntries(UNIT_TYPES.map((u) => [u, 0])), total: 0 };
-    mDeals.forEach((d) => UNIT_TYPES.forEach((u) => { counts[u] += d.units?.[u] || 0; }));
-    counts.total = UNIT_TYPES.reduce((s, u) => s + counts[u], 0); return counts;
+    const counts = { month: mName.substring(0, 3), monthIdx: mIdx, ...Object.fromEntries(unitTypes.map((u) => [u, 0])), total: 0 };
+    mDeals.forEach((d) => unitTypes.forEach((u) => { counts[u] += d.units?.[u] || 0; }));
+    counts.total = unitTypes.reduce((s, u) => s + counts[u], 0); return counts;
   }), [yearlyDeals]);
 
   const ytdTotal = useMemo(() => {
-    const t = { ...Object.fromEntries(UNIT_TYPES.map((u) => [u, 0])), total: 0 };
-    yearlyDeals.forEach((d) => UNIT_TYPES.forEach((u) => { t[u] += d.units?.[u] || 0; }));
-    t.total = UNIT_TYPES.reduce((s, u) => s + t[u], 0); return t;
+    const t = { ...Object.fromEntries(unitTypes.map((u) => [u, 0])), total: 0 };
+    yearlyDeals.forEach((d) => unitTypes.forEach((u) => { t[u] += d.units?.[u] || 0; }));
+    t.total = unitTypes.reduce((s, u) => s + t[u], 0); return t;
   }, [yearlyDeals]);
 
   const yearlyRepPerf = useMemo(() => act.map((sp) => {
     const rd = yearlyDeals.filter((d) => d.salesperson === sp.id);
-    const counts = { ...Object.fromEntries(UNIT_TYPES.map((u) => [u, 0])), total: 0 };
-    rd.forEach((d) => UNIT_TYPES.forEach((u) => { counts[u] += d.units?.[u] || 0; }));
-    counts.total = UNIT_TYPES.reduce((s, u) => s + counts[u], 0);
+    const counts = { ...Object.fromEntries(unitTypes.map((u) => [u, 0])), total: 0 };
+    rd.forEach((d) => unitTypes.forEach((u) => { counts[u] += d.units?.[u] || 0; }));
+    counts.total = unitTypes.reduce((s, u) => s + counts[u], 0);
     return { ...sp, ...counts };
   }).sort((a, b) => b.total - a.total), [yearlyDeals, act]);
 
   // Scroll to top on tab change
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [view]);
 
+  // ═══ STORE PICKER GATE ═══
+  if (!currentStore) {
+    return <StorePickerScreen />;
+  }
+
   // ═══ LOGIN GATE ═══
   if (!currentUser) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} storeId={storeId} storeTheme={storeTheme} onChangeStore={clearStore} />;
   }
 
   // ── Loading ──
@@ -243,7 +263,7 @@ export default function App() {
     return (
       <div style={{ fontFamily: FB, background: 'var(--bg-primary)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
-          <img src="/logo.png" alt="Performance East" style={{ height: 50, marginBottom: 12 }} />
+          <img src={storeTheme?.logo || '/logo.png'} alt="Performance East" style={{ height: 50, marginBottom: 12 }} />
           <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2 }}>LOADING SALES TRACKER...</div>
         </div>
       </div>
@@ -269,9 +289,9 @@ export default function App() {
     ['financeDash', 'F&I', 'F&I', 'mgmt'],
     ['history', 'HISTORY', 'HIST', 'mgmt'],
   ];
-  const tabs = allTabs.filter(([k]) => canSeeTab(currentUser, k));
+  const tabs = allTabs.filter(([k]) => canSeeTab(currentUser, k, storeConfig));
 
-  if (!canSeeTab(currentUser, view) && view !== 'dashboard') {
+  if (!canSeeTab(currentUser, view, storeConfig) && view !== 'dashboard') {
     setView('dashboard');
   }
 
@@ -322,9 +342,19 @@ export default function App() {
         position: 'sticky', top: 0, zIndex: 100, boxShadow: 'var(--shadow-sm)', flexWrap: 'wrap', gap: 8,
       }}>
         <div className="header-logo-section" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <img src="/logo.png" alt="Performance East Inc." style={{ height: 36, objectFit: 'contain' }} />
+          <img src={storeTheme?.logo || '/logo.png'} alt={currentStore?.name || 'Performance East'} style={{ height: 36, objectFit: 'contain' }} />
           <div className="header-divider" style={{ width: 1, height: 28, background: 'var(--divider)' }} />
-          <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', letterSpacing: 2 }}>SALES PORTAL</div>
+          <div>
+            <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', letterSpacing: 2 }}>{currentStore?.short_name?.toUpperCase() || 'SALES PORTAL'}</div>
+            {currentUser?.role === 'admin' && stores.length > 1 && (
+              <select value={storeId || ''} onChange={(e) => { handleLogout(); setStore(e.target.value); }} style={{
+                fontFamily: FM, fontSize: 8, color: 'var(--brand-red)', background: 'transparent',
+                border: 'none', cursor: 'pointer', padding: 0, fontWeight: 700,
+              }}>
+                {stores.filter((s) => s.active).map((s) => <option key={s.id} value={s.id}>{s.short_name || s.name}</option>)}
+              </select>
+            )}
+          </div>
           <div className="header-divider" style={{ width: 1, height: 28, background: 'var(--divider)' }} />
           <div className="header-tabs" style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, flexWrap: 'wrap' }}>
             {tabs.map(([k, l, short]) => (
@@ -467,7 +497,7 @@ export default function App() {
       </div>
 
       <div className="app-footer" style={{ borderTop: '1px solid var(--divider)', padding: '10px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, fontFamily: FM, letterSpacing: 1 }}>
-        PERFORMANCE EAST INC · SALES PORTAL · GOLDSBORO, NC
+        {storeTheme?.footer || 'PERFORMANCE EAST INC \u00B7 SALES PORTAL'}
       </div>
     </div>
   );

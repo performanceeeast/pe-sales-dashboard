@@ -5,7 +5,7 @@ import { styles, FM, FH, FB } from './SharedUI';
 
 const { input: inp, btn1: b1 } = styles;
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, storeId, storeTheme, onChangeStore }) {
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState('');
@@ -15,11 +15,13 @@ export default function LoginScreen({ onLogin }) {
 
   useEffect(() => {
     (async () => {
-      const u = await loadUsers();
+      let u = await loadUsers(storeId);
+      // Fallback: if no users found for this store, load all users
+      if (u.length === 0) u = await loadUsers();
       setUsers(u);
       setUsersLoading(false);
     })();
-  }, []);
+  }, [storeId]);
 
   async function handleLogin() {
     if (!selectedUser) { setError('Select your name'); return; }
@@ -40,8 +42,11 @@ export default function LoginScreen({ onLogin }) {
     <div style={{ fontFamily: FB, background: 'var(--bg-primary)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: 'var(--card-bg)', borderRadius: 12, padding: 32, width: 340, border: '1px solid var(--border-primary)', boxShadow: 'var(--shadow-lg)' }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <img src="/logo.png" alt="Performance East" style={{ height: 50, marginBottom: 12 }} />
+          <img src={storeTheme?.logo || '/logo.png'} alt="Performance East" style={{ height: 50, marginBottom: 12 }} />
           <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2 }}>SALES PORTAL</div>
+          {onChangeStore && (
+            <button onClick={onChangeStore} style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6, textDecoration: 'underline' }}>Change Store</button>
+          )}
         </div>
 
         {usersLoading ? (

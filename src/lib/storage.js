@@ -1,53 +1,56 @@
 /**
  * Storage layer — Supabase primary, localStorage cache for offline.
- * All functions are async. The app reads from Supabase and writes back.
+ * All functions are async. Multi-store: storeId is first param where applicable.
  */
 import { supabase } from './supabaseClient';
 
 // ── Monthly Data (goals, KPIs, checklists, etc.) ──
 
-export async function loadMonth(year, month) {
+export async function loadMonth(storeId, year, month) {
   try {
-    const { data, error } = await supabase
-      .from('monthly_data')
-      .select('*')
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle();
+    let q = supabase.from('monthly_data').select('*').eq('year', year).eq('month', month);
+    if (storeId) q = q.eq('store_id', storeId);
+    const { data, error } = await q.maybeSingle();
     if (error) throw error;
     if (data) return rowToMonthData(data);
     return null;
   } catch (e) {
     console.error('loadMonth error, falling back to localStorage:', e);
     try {
-      const raw = localStorage.getItem(`peg-sales-${year}-${month}`);
+      const key = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
+      const raw = localStorage.getItem(key);
+      // Also try legacy key without storeId
+      if (!raw && storeId) {
+        const legacyRaw = localStorage.getItem(`peg-sales-${year}-${month}`);
+        return legacyRaw ? JSON.parse(legacyRaw) : null;
+      }
       return raw ? JSON.parse(raw) : null;
     } catch { return null; }
   }
 }
 
-export async function saveMonth(year, month, data) {
+export async function saveMonth(storeId, year, month, data) {
   const row = monthDataToRow(year, month, data);
+  if (storeId) row.store_id = storeId;
   try {
     const { error } = await supabase
       .from('monthly_data')
-      .upsert(row, { onConflict: 'year,month' });
+      .upsert(row, { onConflict: storeId ? 'store_id,year,month' : 'year,month' });
     if (error) throw error;
-    // Also cache in localStorage
-    localStorage.setItem(`peg-sales-${year}-${month}`, JSON.stringify(data));
+    const cacheKey = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
+    localStorage.setItem(cacheKey, JSON.stringify(data));
   } catch (e) {
     console.error('saveMonth error, saving to localStorage:', e);
-    localStorage.setItem(`peg-sales-${year}-${month}`, JSON.stringify(data));
+    const cacheKey = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
+    localStorage.setItem(cacheKey, JSON.stringify(data));
   }
 }
 
-export async function loadYear(year) {
+export async function loadYear(storeId, year) {
   try {
-    const { data, error } = await supabase
-      .from('monthly_data')
-      .select('*')
-      .eq('year', year)
-      .order('month');
+    let q = supabase.from('monthly_data').select('*').eq('year', year);
+    if (storeId) q = q.eq('store_id', storeId);
+    const { data, error } = await q.order('month');
     if (error) throw error;
     const months = Array(12).fill(null);
     (data || []).forEach((row) => { months[row.month] = rowToMonthData(row); });
@@ -57,7 +60,9 @@ export async function loadYear(year) {
     const months = [];
     for (let m = 0; m < 12; m++) {
       try {
-        const raw = localStorage.getItem(`peg-sales-${year}-${m}`);
+        const key = storeId ? `peg-sales-${storeId}-${year}-${m}` : `peg-sales-${year}-${m}`;
+        let raw = localStorage.getItem(key);
+        if (!raw && storeId) raw = localStorage.getItem(`peg-sales-${year}-${m}`);
         months.push(raw ? JSON.parse(raw) : null);
       } catch { months.push(null); }
     }
@@ -65,61 +70,17 @@ export async function loadYear(year) {
   }
 }
 
-// ── Deals (individual deal records in Supabase) ──
-
-export async function loadDeals(year, month) {
-  try {
-    const { data, error } = await supabase
-      .from('deals')
-      .select('*')
-      .eq('year', year)
-      .eq('month', month)
-      .order('date');
-    if (error) throw error;
-    return (data || []).map(rowToDeal);
-  } catch (e) {
-    console.error('loadDeals error:', e);
-    return [];
-  }
-}
-
-export async function saveDeal(deal) {
-  const row = dealToRow(deal);
-  try {
-    const { data, error } = await supabase
-      .from('deals')
-      .upsert(row)
-      .select()
-      .single();
-    if (error) throw error;
-    return rowToDeal(data);
-  } catch (e) {
-    console.error('saveDeal error:', e);
-    return deal;
-  }
-}
-
-export async function deleteDeal(id) {
-  try {
-    await supabase.from('deals').delete().eq('id', id);
-  } catch (e) {
-    console.error('deleteDeal error:', e);
-  }
-}
-
 // ── Users ──
 
-export async function loadUsers() {
+export async function loadUsers(storeId) {
   try {
-    const { data, error } = await supabase
-      .from('crm_users')
-      .select('*')
-      .order('name');
+    let q = supabase.from('crm_users').select('*').order('name');
+    if (storeId) q = q.eq('store_id', storeId);
+    const { data, error } = await q;
     if (error) throw error;
     return data || [];
   } catch (e) {
     console.error('loadUsers error:', e);
-    // Fallback to localStorage
     try {
       const raw = localStorage.getItem('peg-auth-users');
       return raw ? JSON.parse(raw) : [];
@@ -127,13 +88,13 @@ export async function loadUsers() {
   }
 }
 
-export async function saveUsers(users) {
+export async function saveUsers(users, storeId) {
   try {
-    // Upsert all users
     const { error } = await supabase
       .from('crm_users')
       .upsert(users.map((u) => ({
         id: u.id, name: u.name, role: u.role, pin: u.pin, active: u.active !== false,
+        ...(storeId ? { store_id: storeId } : {}),
       })));
     if (error) throw error;
   } catch (e) {
@@ -162,6 +123,7 @@ export async function authenticate(userId, pin) {
 export async function loadCustomers(filters = {}) {
   try {
     let q = supabase.from('customers').select('*').order('updated_at', { ascending: false });
+    if (filters.store_id) q = q.eq('store_id', filters.store_id);
     if (filters.assigned_to) q = q.eq('assigned_to', filters.assigned_to);
     if (filters.status) q = q.eq('status', filters.status);
     const { data, error } = await q;
@@ -288,10 +250,11 @@ export async function completeReminder(id, notes) {
 
 // ── Documents ──
 
-export async function loadDocuments(category) {
+export async function loadDocuments(category, storeId) {
   try {
     let q = supabase.from('documents').select('*').order('created_at', { ascending: false });
     if (category && category !== 'all') q = q.eq('category', category);
+    if (storeId) q = q.eq('store_id', storeId);
     const { data, error } = await q;
     if (error) throw error;
     return data || [];
@@ -301,9 +264,9 @@ export async function loadDocuments(category) {
   }
 }
 
-export async function uploadDocument(file, category, uploadedBy) {
+export async function uploadDocument(file, category, uploadedBy, storeId) {
   try {
-    const filePath = `${category}/${Date.now()}_${file.name}`;
+    const filePath = `${storeId || 'general'}/${category}/${Date.now()}_${file.name}`;
     const { error: uploadError } = await supabase.storage
       .from('documents')
       .upload(filePath, file);
@@ -322,6 +285,7 @@ export async function uploadDocument(file, category, uploadedBy) {
         file_path: urlData.publicUrl,
         file_size: file.size,
         mime_type: file.type,
+        ...(storeId ? { store_id: storeId } : {}),
       })
       .select()
       .single();
@@ -335,13 +299,28 @@ export async function uploadDocument(file, category, uploadedBy) {
 
 export async function deleteDocument(doc) {
   try {
-    // Delete from storage
     const path = doc.file_path.split('/documents/')[1];
     if (path) await supabase.storage.from('documents').remove([path]);
-    // Delete record
     await supabase.from('documents').delete().eq('id', doc.id);
   } catch (e) {
     console.error('deleteDocument error:', e);
+  }
+}
+
+// ── Stores ──
+
+export async function loadStores() {
+  try {
+    const { data, error } = await supabase
+      .from('stores')
+      .select('*')
+      .eq('active', true)
+      .order('name');
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.error('loadStores error:', e);
+    return [];
   }
 }
 
@@ -350,7 +329,6 @@ export async function deleteDocument(doc) {
 export async function migrateFromLocalStorage() {
   const migrated = { months: 0, users: 0 };
   try {
-    // Migrate monthly data
     for (let y = 2022; y <= 2027; y++) {
       for (let m = 0; m < 12; m++) {
         const key = `peg-sales-${y}-${m}`;
@@ -358,20 +336,20 @@ export async function migrateFromLocalStorage() {
         if (!raw) continue;
         const data = JSON.parse(raw);
         const row = monthDataToRow(y, m, data);
+        row.store_id = 'goldsboro';
         const { error } = await supabase
           .from('monthly_data')
-          .upsert(row, { onConflict: 'year,month' });
+          .upsert(row, { onConflict: 'store_id,year,month' });
         if (!error) migrated.months++;
       }
     }
-    // Migrate users
     const usersRaw = localStorage.getItem('peg-auth-users');
     if (usersRaw) {
       const users = JSON.parse(usersRaw);
       for (const u of users) {
         const { error } = await supabase
           .from('crm_users')
-          .upsert({ id: u.id, name: u.name, role: u.role, pin: u.pin, active: u.active !== false });
+          .upsert({ id: u.id, name: u.name, role: u.role, pin: u.pin, active: u.active !== false, store_id: 'goldsboro' });
         if (!error) migrated.users++;
       }
     }
@@ -408,6 +386,8 @@ function rowToMonthData(row) {
     fiTargets: row.fi_targets || {},
     gsmBonusConfig: row.gsm_bonus_config || {},
     historyCounts: row.history_counts || {},
+    promos: row.promos || [],
+    priceList: row.price_list || [],
   };
 }
 
@@ -435,6 +415,8 @@ function monthDataToRow(year, month, data) {
     gsm_bonus_config: data.gsmBonusConfig || data.gsm_bonus_config || {},
     history_counts: data.historyCounts || data.history_counts || {},
     leads: data.leads || [],
+    promos: data.promos || [],
+    price_list: data.priceList || data.price_list || [],
   };
 }
 
@@ -449,8 +431,8 @@ function rowToDeal(row) {
     units: row.units || {},
     pgaAmount: row.pga_amount || 0,
     backEndProducts: row.back_end_products || [],
-    accessories: row.accessories || false,
     starChecklist: row.star_checklist || {},
+    signoffs: row.signoffs || {},
     followUpDate: row.follow_up_date,
     referralNames: row.referral_names || '',
     referralDeclined: row.referral_declined || false,
@@ -470,8 +452,8 @@ function dealToRow(deal) {
     units: deal.units || {},
     pga_amount: deal.pgaAmount || deal.pga_amount || 0,
     back_end_products: deal.backEndProducts || deal.back_end_products || [],
-    accessories: deal.accessories || false,
     star_checklist: deal.starChecklist || deal.star_checklist || {},
+    signoffs: deal.signoffs || {},
     follow_up_date: deal.followUpDate || deal.follow_up_date || null,
     referral_names: deal.referralNames || deal.referral_names || '',
     referral_declined: deal.referralDeclined || deal.referral_declined || false,

@@ -1,4 +1,4 @@
-import { UNIT_TYPES, BACK_END_PRODUCTS } from './constants';
+import { UNIT_TYPES as DEFAULT_UNIT_TYPES } from './constants';
 
 /**
  * Get the PG&A flat amount for a given dollar value
@@ -12,9 +12,11 @@ export function getPgaFlat(pgaAmount, pgaTiers) {
 /**
  * Get back-end spiff for a set of products sold
  */
-export function getBeSpiff(products, beSpiffs) {
+export function getBeSpiff(products, beSpiffs, backEndProducts) {
   if (!products || products.length === 0) return 0;
-  const hasAll = BACK_END_PRODUCTS.every((p) => products.includes(p));
+  // Check if customer got ALL back-end products (excluding "ALL OF THE ABOVE" from the check)
+  const productList = (backEndProducts || []).filter((p) => p !== 'ALL OF THE ABOVE');
+  const hasAll = productList.length > 0 && productList.every((p) => products.includes(p));
   if (hasAll) {
     const allBonus = beSpiffs.find((s) => s.product === 'ALL OF THE ABOVE');
     if (allBonus) return allBonus.amount;
@@ -27,32 +29,36 @@ export function getBeSpiff(products, beSpiffs) {
 
 /**
  * Calculate unit counts for a salesperson
+ * @param {Array} unitTypes - store-specific unit types (falls back to default)
  */
-export function getSpUnits(deals, spId) {
+export function getSpUnits(deals, spId, unitTypes) {
+  const types = unitTypes || DEFAULT_UNIT_TYPES;
   const counts = { total: 0 };
-  UNIT_TYPES.forEach((u) => { counts[u] = 0; });
+  types.forEach((u) => { counts[u] = 0; });
   deals
     .filter((d) => d.salesperson === spId)
     .forEach((d) => {
-      UNIT_TYPES.forEach((u) => {
+      types.forEach((u) => {
         counts[u] += d.units?.[u] || 0;
       });
     });
-  counts.total = UNIT_TYPES.reduce((s, u) => s + counts[u], 0);
+  counts.total = types.reduce((s, u) => s + counts[u], 0);
   return counts;
 }
 
 /**
  * Full spiff breakdown for a salesperson
+ * @param {Array} unitTypes - store-specific unit types (falls back to default)
  */
-export function getRepSpiffs(deals, spId, pgaTiers, beSpiffs, hitList) {
+export function getRepSpiffs(deals, spId, pgaTiers, beSpiffs, hitList, unitTypes) {
+  const types = unitTypes || DEFAULT_UNIT_TYPES;
   const repDeals = deals.filter((d) => d.salesperson === spId);
   let totalPga = 0;
   let totalBe = 0;
   let totalHit = 0;
 
   const detailed = repDeals.map((d) => {
-    const unitCount = UNIT_TYPES.reduce((s, u) => s + (d.units?.[u] || 0), 0);
+    const unitCount = types.reduce((s, u) => s + (d.units?.[u] || 0), 0);
     const pgaSpiff = getPgaFlat(d.pgaAmount || 0, pgaTiers) * unitCount;
     const beSpiff = getBeSpiff(d.backEndProducts || [], beSpiffs) * unitCount;
     const hitItem = hitList.find(

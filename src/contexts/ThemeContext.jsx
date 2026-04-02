@@ -93,17 +93,38 @@ export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(() => {
     try { return localStorage.getItem(THEME_KEY) === 'dark'; } catch { return false; }
   });
+  const [storeBranding, setStoreBranding] = useState(null);
 
   useEffect(() => {
-    applyTheme(isDark ? darkVars : lightVars);
+    const base = isDark ? { ...darkVars } : { ...lightVars };
+    // Apply store-specific brand colors on top of base theme
+    if (storeBranding) {
+      const brand = isDark ? storeBranding.brand_dark || storeBranding.brand_primary : storeBranding.brand_primary;
+      const brandHover = isDark ? storeBranding.brand_dark_hover || storeBranding.brand_primary_hover : storeBranding.brand_primary_hover;
+      const brandSoft = isDark ? storeBranding.brand_dark_soft || storeBranding.brand_primary_soft : storeBranding.brand_primary_soft;
+      if (brand) {
+        base['--brand-red'] = brand;
+        base['--header-border'] = brand;
+        base['--border-accent'] = brand;
+        base['--tab-active-bg'] = brand;
+      }
+      if (brandHover) base['--brand-red-hover'] = brandHover;
+      if (brandSoft) base['--brand-red-soft'] = brandSoft;
+    }
+    applyTheme(base);
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
     try { localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light'); } catch {}
-  }, [isDark]);
+  }, [isDark, storeBranding]);
 
   const toggleTheme = () => setIsDark((d) => !d);
 
+  // Called by StoreContext when store changes
+  const applyStoreBranding = (storeTheme) => {
+    setStoreBranding(storeTheme || null);
+  };
+
   return (
-    <ThemeContext.Provider value={{ isDark, toggleTheme }}>
+    <ThemeContext.Provider value={{ isDark, toggleTheme, applyStoreBranding }}>
       {children}
     </ThemeContext.Provider>
   );

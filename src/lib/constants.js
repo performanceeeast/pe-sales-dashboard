@@ -13,6 +13,7 @@ export const UNIT_COLORS = {
   BOAT: '#d97706',
   TRAILER: '#7c3aed',
   YOUTH: '#ec4899',
+  'ENGINE REPOWER': '#0891b2',
 };
 
 export const LEAD_SOURCES = ['WEBSITE', 'FACEBOOK', 'OTHER'];

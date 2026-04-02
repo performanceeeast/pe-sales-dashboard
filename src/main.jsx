@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { StoreProvider } from './contexts/StoreContext';
 import { AppProvider } from './contexts/AppContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import App from './App';
@@ -9,11 +10,13 @@ import './index.css';
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ThemeProvider>
-      <AppProvider>
-        <NotificationProvider>
-          <App />
-        </NotificationProvider>
-      </AppProvider>
+      <StoreProvider>
+        <AppProvider>
+          <NotificationProvider>
+            <App />
+          </NotificationProvider>
+        </AppProvider>
+      </StoreProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

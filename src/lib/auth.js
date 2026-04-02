@@ -1,7 +1,5 @@
 /**
- * Auth & Permissions
- * User data now stored in Supabase crm_users table.
- * loadUsers/saveUsers/authenticate are in storage.js
+ * Auth & Permissions — Multi-store aware
  */
 
 export const ROLES = {
@@ -10,31 +8,60 @@ export const ROLES = {
   finance: { label: 'Finance Manager', color: '#2563eb', access: 'finance+deals' },
   ism: { label: 'Internet Sales', color: '#0284c7', access: 'ism+deals' },
   salesperson: { label: 'Salesperson', color: '#16a34a', access: 'own-deals' },
+  sales_finance_mgr: { label: 'Sales/Finance Mgr', color: '#d97706', access: 'all' },
 };
+
+// Get available roles for a store's config
+export function getRolesForStore(storeConfig) {
+  if (!storeConfig) return ROLES;
+  const available = {};
+  // Always include admin and salesperson
+  available.admin = ROLES.admin;
+  available.salesperson = ROLES.salesperson;
+
+  if (storeConfig.has_ism) {
+    available.gsm = ROLES.gsm;
+    available.finance = ROLES.finance;
+    available.ism = ROLES.ism;
+  } else {
+    // No ISM = combined sales/finance manager (like Cedar Point)
+    available.sales_finance_mgr = ROLES.sales_finance_mgr;
+  }
+  return available;
+}
+
+// Helper: is this user a manager-level role?
+function isManager(role) {
+  return role === 'admin' || role === 'gsm' || role === 'sales_finance_mgr';
+}
+
+function isFinanceRole(role) {
+  return role === 'finance' || role === 'sales_finance_mgr';
+}
 
 // Permission helpers
 export function canEditDeal(currentUser, deal) {
   if (!currentUser) return false;
-  if (currentUser.role === 'admin' || currentUser.role === 'gsm') return true;
+  if (isManager(currentUser.role)) return true;
   return currentUser.id === deal.salesperson;
 }
 
-export function canSeeTab(currentUser, tab) {
+export function canSeeTab(currentUser, tab, storeConfig) {
   if (!currentUser) return false;
-  if (currentUser.role === 'admin' || currentUser.role === 'gsm') return true;
+  if (isManager(currentUser.role)) return true;
 
   switch (tab) {
     case 'dashboard': return true;
     case 'deals': return true;
-    case 'leads': return currentUser.role !== 'salesperson'; // ISM dashboard — not for regular salespeople
+    case 'leads': return storeConfig?.has_ism !== false && currentUser.role !== 'salesperson';
     case 'floor': return currentUser.role !== 'salesperson';
     case 'board': return true;
-    case 'goals': return currentUser.role === 'admin' || currentUser.role === 'gsm';
-    case 'crm': return currentUser.role === 'admin'; // CRM hidden — testing only
-    case 'promos': return true; // Everyone can see promos & pricing
+    case 'goals': return false; // managers only (handled by isManager above)
+    case 'crm': return currentUser.role === 'admin';
+    case 'promos': return true;
     case 'history': return true;
-    case 'gsmDash': return currentUser.role === 'admin' || currentUser.role === 'gsm';
-    case 'financeDash': return currentUser.role === 'admin' || currentUser.role === 'gsm' || currentUser.role === 'finance';
+    case 'gsmDash': return false; // managers only
+    case 'financeDash': return isFinanceRole(currentUser.role);
     case 'docs': return true;
     default: return true;
   }
@@ -42,7 +69,7 @@ export function canSeeTab(currentUser, tab) {
 
 export function canEditGoals(currentUser) {
   if (!currentUser) return false;
-  return currentUser.role === 'admin' || currentUser.role === 'gsm';
+  return isManager(currentUser.role);
 }
 
 export function canManageUsers(currentUser) {
@@ -52,10 +79,10 @@ export function canManageUsers(currentUser) {
 
 export function canSeeAllCustomers(currentUser) {
   if (!currentUser) return false;
-  return currentUser.role === 'admin' || currentUser.role === 'gsm' || currentUser.role === 'ism';
+  return isManager(currentUser.role) || currentUser.role === 'ism';
 }
 
 export function canDeleteCustomer(currentUser) {
   if (!currentUser) return false;
-  return currentUser.role === 'admin' || currentUser.role === 'gsm' || currentUser.role === 'ism';
+  return isManager(currentUser.role) || currentUser.role === 'ism';
 }
