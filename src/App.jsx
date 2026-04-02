@@ -77,6 +77,9 @@ export default function App() {
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [salesSub, setSalesSub] = useState('deals');
+  const [leadsSub, setLeadsSub] = useState('ism');
+  const [mgrSub, setMgrSub] = useState('goals');
   const [crmUsers, setCrmUsers] = useState([]);
 
   // ── Session persistence ──
@@ -304,75 +307,66 @@ export default function App() {
       {!showAdmin && view === 'dashboard' && <DashboardTab month={month} year={year} goals={goals} tot={tot} tTgt={tTgt} tStr={tStr} ls={ls} floorTrafficStats={floorTrafficStats} yearlyMonthSales={yearlyMonthSales} ytdTotal={ytdTotal} yearlyRepPerf={yearlyRepPerf} notes={notes} saveNotes={saveNotes} meetingNotes={meetingNotes} saveMeetingNotes={saveMeetingNotes} deals={deals} currentUser={currentUser} act={act} updateDeal={updateDeal} unitTypes={unitTypes} />}
 
       {/* SALES — Deals + Leaderboard + History (consolidated) */}
-      {!showAdmin && view === 'sales' && (() => {
-        const [salesSub, setSalesSub] = React.useState('deals');
-        return (
-          <div>
-            <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
-              {[{ id: 'deals', label: 'DEALS' }, { id: 'board', label: 'LEADERBOARD' }, { id: 'history', label: 'HISTORY' }].map((v) => (
-                <button key={v.id} onClick={() => setSalesSub(v.id)} style={{
-                  padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-                  fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
-                  background: salesSub === v.id ? 'var(--brand-red)' : 'transparent',
-                  color: salesSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
-                  transition: 'all .15s',
-                }}>{v.label}</button>
-              ))}
-            </div>
-            {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} />}
-            {salesSub === 'board' && <LeaderboardTab month={month} year={year} deals={deals} act={act} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} setSelRep={setSelRep} unitTypes={unitTypes} />}
-            {salesSub === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
+      {!showAdmin && view === 'sales' && (
+        <div>
+          <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
+            {[{ id: 'deals', label: 'DEALS' }, { id: 'board', label: 'LEADERBOARD' }, { id: 'history', label: 'HISTORY' }].map((v) => (
+              <button key={v.id} onClick={() => setSalesSub(v.id)} style={{
+                padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
+                background: salesSub === v.id ? 'var(--brand-red)' : 'transparent',
+                color: salesSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
+                transition: 'all .15s',
+              }}>{v.label}</button>
+            ))}
           </div>
-        );
-      })()}
+          {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} />}
+          {salesSub === 'board' && <LeaderboardTab month={month} year={year} deals={deals} act={act} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} setSelRep={setSelRep} unitTypes={unitTypes} />}
+          {salesSub === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
+        </div>
+      )}
 
       {/* LEADS — ISM + Floor (Goldsboro) or SimpleLeads (Cedar Point) */}
-      {!showAdmin && view === 'leads' && (() => {
-        if (storeConfig?.has_ism === false) {
-          return <SimpleLeadsTab month={month} year={year} deals={deals} act={act} dailyLeadCounts={dailyLeadCounts} saveDLC={saveDLC} floorDailyLeadCounts={floorDailyLeadCounts} saveFloorDLC={saveFloorDLC} />;
-        }
-        const [leadsSub, setLeadsSub] = React.useState('ism');
-        return (
-          <div>
-            <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
-              {[{ id: 'ism', label: 'INTERNET LEADS' }, { id: 'floor', label: 'FLOOR TRAFFIC' }].map((v) => (
-                <button key={v.id} onClick={() => setLeadsSub(v.id)} style={{
-                  padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-                  fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
-                  background: leadsSub === v.id ? 'var(--brand-red)' : 'transparent',
-                  color: leadsSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
-                  transition: 'all .15s',
-                }}>{v.label}</button>
-              ))}
-            </div>
-            {leadsSub === 'ism' && <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} />}
-            {leadsSub === 'floor' && <FloorLeadsTab month={month} year={year} deals={deals} act={act} spList={spList} floorDailyLeadCounts={floorDailyLeadCounts} floorBulkLeadCounts={floorBulkLeadCounts} yearlyDeals={yearlyDeals} yearlyMonthData={yearlyMonthData} saveFloorDLC={saveFloorDLC} saveFloorBLC={saveFloorBLC} />}
+      {!showAdmin && view === 'leads' && storeConfig?.has_ism === false && (
+        <SimpleLeadsTab month={month} year={year} deals={deals} act={act} dailyLeadCounts={dailyLeadCounts} saveDLC={saveDLC} floorDailyLeadCounts={floorDailyLeadCounts} saveFloorDLC={saveFloorDLC} />
+      )}
+      {!showAdmin && view === 'leads' && storeConfig?.has_ism !== false && (
+        <div>
+          <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
+            {[{ id: 'ism', label: 'INTERNET LEADS' }, { id: 'floor', label: 'FLOOR TRAFFIC' }].map((v) => (
+              <button key={v.id} onClick={() => setLeadsSub(v.id)} style={{
+                padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
+                background: leadsSub === v.id ? 'var(--brand-red)' : 'transparent',
+                color: leadsSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
+                transition: 'all .15s',
+              }}>{v.label}</button>
+            ))}
           </div>
-        );
-      })()}
+          {leadsSub === 'ism' && <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} />}
+          {leadsSub === 'floor' && <FloorLeadsTab month={month} year={year} deals={deals} act={act} spList={spList} floorDailyLeadCounts={floorDailyLeadCounts} floorBulkLeadCounts={floorBulkLeadCounts} yearlyDeals={yearlyDeals} yearlyMonthData={yearlyMonthData} saveFloorDLC={saveFloorDLC} saveFloorBLC={saveFloorBLC} />}
+        </div>
+      )}
 
       {/* MANAGER — Goals + GSM + Pricing (consolidated) */}
-      {!showAdmin && view === 'manager' && (() => {
-        const [mgrSub, setMgrSub] = React.useState('goals');
-        return (
-          <div>
-            <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
-              {[{ id: 'goals', label: 'GOALS & SPIFFS' }, { id: 'gsm', label: 'ACCOUNTABILITY' }, { id: 'pricing', label: 'PRICING' }].map((v) => (
-                <button key={v.id} onClick={() => setMgrSub(v.id)} style={{
-                  padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-                  fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
-                  background: mgrSub === v.id ? 'var(--brand-red)' : 'transparent',
-                  color: mgrSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
-                  transition: 'all .15s',
-                }}>{v.label}</button>
-              ))}
-            </div>
-            {mgrSub === 'goals' && <GoalsTab goals={goals} tot={tot} tTgt={tTgt} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} contests={contests} spList={spList} act={act} modal={modal} setModal={setModal} saveGoals={saveGoals} saveReps={saveReps} savePga={savePga} saveBe={saveBe} saveHL={saveHL} saveCT={saveCT} unitTypes={unitTypes} />}
-            {mgrSub === 'gsm' && <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />}
-            {mgrSub === 'pricing' && <PromosTab currentUser={currentUser} />}
+      {!showAdmin && view === 'manager' && (
+        <div>
+          <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
+            {[{ id: 'goals', label: 'GOALS & SPIFFS' }, { id: 'gsm', label: 'ACCOUNTABILITY' }, { id: 'pricing', label: 'PRICING' }].map((v) => (
+              <button key={v.id} onClick={() => setMgrSub(v.id)} style={{
+                padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
+                background: mgrSub === v.id ? 'var(--brand-red)' : 'transparent',
+                color: mgrSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
+                transition: 'all .15s',
+              }}>{v.label}</button>
+            ))}
           </div>
-        );
-      })()}
+          {mgrSub === 'goals' && <GoalsTab goals={goals} tot={tot} tTgt={tTgt} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} contests={contests} spList={spList} act={act} modal={modal} setModal={setModal} saveGoals={saveGoals} saveReps={saveReps} savePga={savePga} saveBe={saveBe} saveHL={saveHL} saveCT={saveCT} unitTypes={unitTypes} />}
+          {mgrSub === 'gsm' && <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />}
+          {mgrSub === 'pricing' && <PromosTab currentUser={currentUser} />}
+        </div>
+      )}
 
       {/* F&I — Preserved exactly (already has internal sub-views) */}
       {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} act={act} storeConfig={storeConfig} storeTheme={storeTheme} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />}
