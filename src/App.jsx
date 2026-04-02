@@ -322,7 +322,7 @@ export default function App() {
       {!showAdmin && view === 'sales' && (
         <div>
           <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
-            {[{ id: 'deals', label: 'DEALS' }, { id: 'board', label: 'LEADERBOARD' }, { id: 'inventory', label: 'INVENTORY' }, { id: 'pricing', label: 'PRICING' }, { id: 'history', label: 'HISTORY' }].map((v) => (
+            {[{ id: 'deals', label: 'DEALS' }, { id: 'programs', label: 'PROGRAMS' }, { id: 'history', label: 'HISTORY' }].map((v) => (
               <button key={v.id} onClick={() => setSalesSub(v.id)} style={{
                 padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
                 fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
@@ -333,10 +333,8 @@ export default function App() {
             ))}
           </div>
           {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} />}
-          {salesSub === 'board' && <LeaderboardTab month={month} year={year} deals={deals} act={act} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} setSelRep={setSelRep} unitTypes={unitTypes} />}
+          {salesSub === 'programs' && <PromosTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} promoRecords={promoRecords} savePromoRecords={savePromoRecords} pricingRecords={pricingRecords} savePricingRecords={savePricingRecords} />}
           {salesSub === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
-          {salesSub === 'inventory' && <InventoryTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} inventoryItems={inventoryItems} saveInventoryItems={saveInventoryItems} promoRecords={promoRecords} pricingRecords={pricingRecords} />}
-          {salesSub === 'pricing' && <PromosTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} promoRecords={promoRecords} savePromoRecords={savePromoRecords} pricingRecords={pricingRecords} savePricingRecords={savePricingRecords} />}
         </div>
       )}
 
