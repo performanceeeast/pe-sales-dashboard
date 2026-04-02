@@ -105,6 +105,25 @@ export async function saveUsers(users, storeId) {
   }
 }
 
+export async function saveOneUser(user) {
+  try {
+    const { error } = await supabase
+      .from('crm_users')
+      .upsert({ id: user.id, name: user.name, role: user.role, pin: user.pin, active: user.active !== false, store_id: user.store_id || 'goldsboro' });
+    if (error) throw error;
+  } catch (e) {
+    console.error('saveOneUser error:', e);
+  }
+}
+
+export async function deleteUser(id) {
+  try {
+    await supabase.from('crm_users').delete().eq('id', id);
+  } catch (e) {
+    console.error('deleteUser error:', e);
+  }
+}
+
 export async function authenticate(userId, pin) {
   try {
     const { data, error } = await supabase

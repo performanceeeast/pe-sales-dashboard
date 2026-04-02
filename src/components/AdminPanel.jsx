@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { loadUsers, saveUsers, migrateFromLocalStorage } from '../lib/storage';
+import { loadUsers, saveUsers, saveOneUser, deleteUser, migrateFromLocalStorage } from '../lib/storage';
 import { ROLES, getRolesForStore } from '../lib/auth';
 import { styles, FM, FH } from './SharedUI';
 import { useStore } from '../contexts/StoreContext';
@@ -20,30 +20,32 @@ export default function AdminPanel({ storeId, storeConfig }) {
   const [migrating, setMigrating] = useState(false);
   const [migrateResult, setMigrateResult] = useState(null);
 
-  useEffect(() => {
-    (async () => {
-      const u = await loadUsers(storeId);
-      setUsers(u);
-      setLoading(false);
-    })();
-  }, [storeId]);
-
-  async function persist(updated) {
-    setUsers(updated);
-    await saveUsers(updated, storeId);
+  async function refresh() {
+    setLoading(true);
+    const u = await loadUsers(storeId);
+    setUsers(u);
+    setLoading(false);
   }
 
-  function addUser() {
+  useEffect(() => { refresh(); }, [storeId]);
+
+  async function handleUpdateUser(user) {
+    await saveOneUser(user);
+    await refresh();
+  }
+
+  async function handleDeleteUser(id) {
+    await deleteUser(id);
+    await refresh();
+  }
+
+  async function addUser() {
     if (!newName.trim() || !newPin || newPin.length !== 4) return;
     const id = newName.trim().toLowerCase().split(' ')[0] + '_' + Date.now().toString().slice(-4);
     const newUser = { id, name: newName.trim(), role: newRole, pin: newPin, active: true, store_id: newStore };
-    // If adding to current store, add to local list. Otherwise save directly.
-    if (newStore === storeId) {
-      persist([...users, newUser]);
-    } else {
-      saveUsers([newUser], newStore);
-    }
+    await saveOneUser(newUser);
     setNewName(''); setNewPin(''); setNewRole('salesperson'); setNewStore(storeId || 'goldsboro');
+    await refresh();
   }
 
   async function handleMigrate() {
@@ -69,7 +71,7 @@ export default function AdminPanel({ storeId, storeConfig }) {
                 <tr key={u.id}>
                   <td style={{ ...TD, fontFamily: FH, fontWeight: 600 }}>{u.name}</td>
                   <td style={TD}>
-                    <select value={u.role} onChange={(e) => persist(users.map((x) => x.id === u.id ? { ...x, role: e.target.value } : x))} style={{ ...inp, width: 'auto', padding: '3px 6px', fontSize: 10 }}>
+                    <select value={u.role} onChange={(e) => handleUpdateUser({ ...u, role: e.target.value })} style={{ ...inp, width: 'auto', padding: '3px 6px', fontSize: 10 }}>
                       {Object.entries(storeRoles).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
                   </td>
@@ -77,20 +79,20 @@ export default function AdminPanel({ storeId, storeConfig }) {
                     {editingId === u.id ? (
                       <div style={{ display: 'flex', gap: 4 }}>
                         <input value={editPin} onChange={(e) => setEditPin(e.target.value.replace(/\D/g, '').substring(0, 4))} maxLength={4} style={{ ...inp, width: 60, textAlign: 'center', letterSpacing: 3, fontSize: 11 }} placeholder="0000" />
-                        <button onClick={() => { persist(users.map((x) => x.id === u.id ? { ...x, pin: editPin } : x)); setEditingId(null); setEditPin(''); }} style={{ ...b2, padding: '2px 8px', fontSize: 9 }}>SET</button>
+                        <button onClick={() => { handleUpdateUser({ ...u, pin: editPin }); setEditingId(null); setEditPin(''); }} style={{ ...b2, padding: '2px 8px', fontSize: 9 }}>SET</button>
                       </div>
                     ) : (
                       <button onClick={() => { setEditingId(u.id); setEditPin(u.pin); }} style={{ ...b2, padding: '2px 8px', fontSize: 9 }}>CHANGE</button>
                     )}
                   </td>
                   <td style={TD}>
-                    <button onClick={() => persist(users.map((x) => x.id === u.id ? { ...x, active: !x.active } : x))} style={{
+                    <button onClick={() => handleUpdateUser({ ...u, active: u.active === false ? true : false })} style={{
                       background: u.active !== false ? '#dcfce7' : '#fef2f2', border: 'none', borderRadius: 3, padding: '2px 8px',
                       cursor: 'pointer', fontFamily: FM, fontSize: 9, fontWeight: 700, color: u.active !== false ? '#16a34a' : '#b91c1c',
                     }}>{u.active !== false ? 'ACTIVE' : 'INACTIVE'}</button>
                   </td>
                   <td style={TD}>
-                    <button onClick={() => { if (confirm(`Remove ${u.name}?`)) persist(users.filter((x) => x.id !== u.id)); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>x</button>
+                    <button onClick={() => { if (confirm(`Remove ${u.name}?`)) handleDeleteUser(u.id); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>x</button>
                   </td>
                 </tr>
               ))}
