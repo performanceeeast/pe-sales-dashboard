@@ -1,0 +1,176 @@
+/* ── Reset & Base ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  -webkit-text-size-adjust: 100%;
+}
+
+button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+input, select, textarea {
+  outline: none;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border-color: var(--input-border);
+  font-size: 16px; /* prevents iOS zoom on focus */
+}
+input:focus, select:focus, textarea:focus { border-color: var(--brand-red) !important; }
+table { border-spacing: 0; }
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ── Theme transitions on key elements ── */
+div, header, nav, section, main, aside, footer {
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* ── Tab fade transition ── */
+.tab-content-enter {
+  opacity: 0;
+  transform: translateY(4px);
+}
+.tab-content-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* ── Card hover lift ── */
+.card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Button press ── */
+button:active {
+  transform: scale(0.97);
+}
+
+/* ══════════════════════════════════
+   MOBILE RESPONSIVE
+   ══════════════════════════════════ */
+
+/* Tablet and below */
+@media (max-width: 1024px) {
+  .app-content {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  /* Header: stack tabs below logo row */
+  .header-main {
+    flex-wrap: wrap !important;
+    padding: 8px 12px !important;
+    gap: 6px !important;
+  }
+
+  .header-logo-section {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .header-tabs {
+    order: 3;
+    flex-basis: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px 0 !important;
+    gap: 1px !important;
+  }
+
+  .header-tabs button {
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding: 5px 8px !important;
+    font-size: 8px !important;
+  }
+
+  .header-right {
+    gap: 4px !important;
+  }
+
+  .header-stats {
+    display: none !important;
+  }
+
+  /* Main content padding */
+  .app-content {
+    padding: 10px 10px 30px !important;
+  }
+
+  /* 2-column grids → single column */
+  .detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tables: horizontal scroll */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Modal: full width on mobile */
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 12px 12px 0 0 !important;
+    max-height: 90vh !important;
+    margin-top: auto;
+  }
+
+  /* Kanban: scroll horizontally */
+  .kanban-board {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 12px;
+  }
+
+  .kanban-column {
+    flex: 0 0 260px !important;
+    min-width: 260px !important;
+  }
+
+  /* Stat cards: 2 per row on mobile */
+  .stat-row {
+    flex-wrap: wrap !important;
+  }
+
+  .stat-row > * {
+    min-width: calc(50% - 6px) !important;
+  }
+
+  /* Footer */
+  .app-footer {
+    padding: 8px 12px !important;
+    font-size: 8px !important;
+  }
+}
+
+/* Small phones */
+@media (max-width: 400px) {
+  .header-tabs button {
+    padding: 4px 6px !important;
+    font-size: 7px !important;
+    letter-spacing: 0 !important;
+  }
+
+  .app-content {
+    padding: 8px 6px 24px !important;
+  }
+}

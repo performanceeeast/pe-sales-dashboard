@@ -1,0 +1,100 @@
+import React, { useState, useEffect } from 'react';
+import { loadUsers, authenticate } from '../lib/storage';
+import { ROLES } from '../lib/auth';
+import { styles, FM, FH, FB } from './SharedUI';
+
+const { input: inp, btn1: b1 } = styles;
+
+export default function LoginScreen({ onLogin }) {
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [selectedUser, setSelectedUser] = useState('');
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const u = await loadUsers();
+      setUsers(u);
+      setUsersLoading(false);
+    })();
+  }, []);
+
+  async function handleLogin() {
+    if (!selectedUser) { setError('Select your name'); return; }
+    if (pin.length !== 4) { setError('Enter 4-digit PIN'); return; }
+    setLoggingIn(true);
+    const user = await authenticate(selectedUser, pin);
+    setLoggingIn(false);
+    if (user) {
+      setError('');
+      onLogin(user);
+    } else {
+      setError('Incorrect PIN');
+      setPin('');
+    }
+  }
+
+  return (
+    <div style={{ fontFamily: FB, background: 'var(--bg-primary)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'var(--card-bg)', borderRadius: 12, padding: 32, width: 340, border: '1px solid var(--border-primary)', boxShadow: 'var(--shadow-lg)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <img src="/logo.png" alt="Performance East" style={{ height: 50, marginBottom: 12 }} />
+          <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2 }}>SALES PORTAL</div>
+        </div>
+
+        {usersLoading ? (
+          <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>CONNECTING...</div>
+        ) : (
+          <>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', letterSpacing: 1, display: 'block', marginBottom: 4 }}>SELECT YOUR NAME</label>
+              <select
+                value={selectedUser}
+                onChange={(e) => { setSelectedUser(e.target.value); setError(''); }}
+                style={{ ...inp, fontSize: 13, padding: '10px 12px' }}
+              >
+                <option value="">— Select —</option>
+                {users.filter((u) => u.active !== false).map((u) => (
+                  <option key={u.id} value={u.id}>{u.name} ({ROLES[u.role]?.label || u.role})</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', letterSpacing: 1, display: 'block', marginBottom: 4 }}>ENTER PIN</label>
+              <input
+                type="password"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => { setPin(e.target.value.replace(/\D/g, '').substring(0, 4)); setError(''); }}
+                onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+                style={{ ...inp, fontSize: 24, textAlign: 'center', letterSpacing: 12, padding: '12px' }}
+                placeholder="- - - -"
+              />
+            </div>
+
+            {error && (
+              <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--brand-red)', textAlign: 'center', marginBottom: 12, background: '#fef2f2', padding: '6px 12px', borderRadius: 4 }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              onClick={handleLogin}
+              disabled={loggingIn}
+              style={{ ...b1, width: '100%', padding: '12px', fontSize: 13, letterSpacing: 1, opacity: loggingIn ? 0.6 : 1 }}
+            >
+              {loggingIn ? 'SIGNING IN...' : 'SIGN IN'}
+            </button>
+          </>
+        )}
+
+        <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', textAlign: 'center', marginTop: 16, letterSpacing: 1 }}>
+          PERFORMANCE EAST INC · GOLDSBORO, NC
+        </div>
+      </div>
+    </div>
+  );
+}
