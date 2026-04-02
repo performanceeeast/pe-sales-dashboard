@@ -429,6 +429,8 @@ function rowToMonthData(row) {
     historyCounts: row.history_counts || {},
     promos: row.promos || [],
     priceList: row.price_list || [],
+    fiMenus: row.fi_menus || [],
+    fiMenuConfig: row.fi_menu_config || {},
   };
 }
 
@@ -458,6 +460,8 @@ function monthDataToRow(year, month, data) {
     leads: data.leads || [],
     promos: data.promos || [],
     price_list: data.priceList || data.price_list || [],
+    fi_menus: data.fiMenus || data.fi_menus || [],
+    fi_menu_config: data.fiMenuConfig || data.fi_menu_config || {},
   };
 }
 
