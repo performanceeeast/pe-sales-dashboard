@@ -20,6 +20,7 @@ export default function PromosTab({ currentUser }) {
   const [docFilter, setDocFilter] = useState('all');
   const [excelPreview, setExcelPreview] = useState(null);
   const [excelImporting, setExcelImporting] = useState(false);
+  const [viewingDoc, setViewingDoc] = useState(null);
 
   const isManager = currentUser?.role === 'admin' || currentUser?.role === 'gsm';
 
@@ -156,7 +157,7 @@ export default function PromosTab({ currentUser }) {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <a href={d.file_path} target="_blank" rel="noopener noreferrer" style={{ ...b2, padding: '5px 12px', fontSize: 9, textDecoration: 'none', display: 'inline-block' }}>VIEW</a>
+                  <button onClick={() => setViewingDoc(d)} style={{ ...b1, padding: '5px 12px', fontSize: 9 }}>VIEW</button>
                   <a href={d.file_path} download={d.name} style={{ ...b2, padding: '5px 12px', fontSize: 9, textDecoration: 'none', display: 'inline-block' }}>DOWNLOAD</a>
                   {isManager && (
                     <button onClick={() => handleDeleteDoc(d)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}>✕</button>
@@ -205,6 +206,40 @@ export default function PromosTab({ currentUser }) {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* In-App Document Viewer */}
+      <Modal open={!!viewingDoc} onClose={() => setViewingDoc(null)} title={viewingDoc?.name || 'Document'} wide>
+        {viewingDoc && (() => {
+          const isPdf = viewingDoc.mime_type?.includes('pdf');
+          const isImage = viewingDoc.mime_type?.includes('image');
+          return (
+            <div>
+              {isPdf && (
+                <iframe
+                  src={viewingDoc.file_path}
+                  style={{ width: '100%', height: '70vh', border: '1px solid var(--border-primary)', borderRadius: 6 }}
+                  title={viewingDoc.name}
+                />
+              )}
+              {isImage && (
+                <img src={viewingDoc.file_path} alt={viewingDoc.name} style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 6 }} />
+              )}
+              {!isPdf && !isImage && (
+                <div style={{ padding: 30, textAlign: 'center' }}>
+                  <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>
+                    This file type cannot be previewed in the browser.
+                  </div>
+                  <a href={viewingDoc.file_path} target="_blank" rel="noopener noreferrer" style={{ ...b1, textDecoration: 'none', display: 'inline-block', padding: '8px 20px' }}>OPEN IN NEW TAB</a>
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+                <a href={viewingDoc.file_path} download={viewingDoc.name} style={{ ...b2, textDecoration: 'none', display: 'inline-block' }}>DOWNLOAD</a>
+                <button onClick={() => setViewingDoc(null)} style={b2}>CLOSE</button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
     </div>
   );
