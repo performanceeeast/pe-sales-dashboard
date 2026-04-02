@@ -72,11 +72,11 @@ export async function loadYear(storeId, year) {
 
 // ── Users ──
 
+// Load users for login screen (includes admins from all stores)
 export async function loadUsers(storeId) {
   try {
     let q = supabase.from('crm_users').select('*').order('name');
     if (storeId) {
-      // Get users for this store + all admins (admins access both stores)
       q = q.or(`store_id.eq.${storeId},role.eq.admin`);
     }
     const { data, error } = await q;
@@ -84,10 +84,21 @@ export async function loadUsers(storeId) {
     return data || [];
   } catch (e) {
     console.error('loadUsers error:', e);
-    try {
-      const raw = localStorage.getItem('peg-auth-users');
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
+    return [];
+  }
+}
+
+// Load users for admin panel (strict — only this store's users)
+export async function loadStoreUsers(storeId) {
+  try {
+    let q = supabase.from('crm_users').select('*').order('name');
+    if (storeId) q = q.eq('store_id', storeId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.error('loadStoreUsers error:', e);
+    return [];
   }
 }
 

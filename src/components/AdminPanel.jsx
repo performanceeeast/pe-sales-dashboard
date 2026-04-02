@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { loadUsers, saveUsers, saveOneUser, deleteUser, migrateFromLocalStorage } from '../lib/storage';
+import { loadStoreUsers, saveOneUser, deleteUser, migrateFromLocalStorage } from '../lib/storage';
 import { ROLES, getRolesForStore } from '../lib/auth';
 import { styles, FM, FH } from './SharedUI';
 import { useStore } from '../contexts/StoreContext';
@@ -22,7 +22,7 @@ export default function AdminPanel({ storeId, storeConfig }) {
 
   async function refresh() {
     setLoading(true);
-    const u = await loadUsers(storeId);
+    const u = await loadStoreUsers(storeId);
     setUsers(u);
     setLoading(false);
   }
