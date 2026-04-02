@@ -50,13 +50,17 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
   async function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
-
-    // Upload file to Supabase storage
     setUploading(true);
-    const doc = await uploadDocument(file, uploadCategory, currentUser.id, storeId);
-    setUploading(false);
 
-    // If Excel, attempt to parse
+    // Try to upload to Supabase storage (may fail if bucket/table not set up)
+    let doc = null;
+    try {
+      doc = await uploadDocument(file, uploadCategory, currentUser.id, storeId);
+    } catch (err) {
+      console.warn('Document storage unavailable, continuing with parse only:', err);
+    }
+
+    // If Excel/CSV, parse it regardless of whether storage succeeded
     const isExcel = file.name.match(/\.(xlsx?|xls|csv)$/i);
     if (isExcel && savePromoRecords) {
       try {
@@ -69,6 +73,8 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
           effectiveEnd: uploadEndDate,
           fileType: uploadType,
         });
+        const warnings = [...result.warnings];
+        if (!doc) warnings.unshift('Note: File was parsed but could not be stored in document library. The extracted data below is still usable.');
         setParsedRecords(result.records.map((r) => ({
           ...r,
           sourceFileId: doc?.id || null,
@@ -76,15 +82,22 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
           createdBy: currentUser?.id || '',
           _isPricing: isPricingType,
         })));
-        setParseWarnings(result.warnings);
+        setParseWarnings(warnings);
         setSubView('upload');
       } catch (err) {
         console.error('Parse error:', err);
-        alert('File uploaded but could not be parsed. It is available in Documents.');
+        alert('Could not parse this file. Error: ' + err.message);
+      }
+    } else if (!isExcel) {
+      // Non-Excel file (PDF, image) — just store it
+      if (doc) {
+        if (subView === 'docs') refreshDocs();
+      } else {
+        alert('Could not upload file. Check that the Supabase documents storage bucket exists and has proper permissions.');
       }
     }
 
-    if (subView === 'docs') refreshDocs();
+    setUploading(false);
     e.target.value = '';
   }
 
