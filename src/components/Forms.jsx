@@ -259,7 +259,8 @@ export function ContestForm({ onSave, onCancel }) {
 }
 
 /* ═══ Goal Form ═══ */
-export function GoalForm({ goals, onSave, onCancel }) {
+export function GoalForm({ goals, onSave, onCancel, unitTypes: propUnitTypes }) {
+  const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   const [f, sF] = useState(JSON.parse(JSON.stringify(goals)));
   const u = (t, k, v) => sF((p) => ({ ...p, [t]: { ...p[t], [k]: parseInt(v) || 0 } }));
   return (

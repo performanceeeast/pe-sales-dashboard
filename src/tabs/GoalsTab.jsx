@@ -118,7 +118,7 @@ export default function GoalsTab({
       </div>
 
       {/* Modals */}
-      <Modal open={modal === 'editGoals'} onClose={() => setModal(null)} title="Edit Monthly Goals"><GoalForm goals={goals} onSave={saveGoals} onCancel={() => setModal(null)} /></Modal>
+      <Modal open={modal === 'editGoals'} onClose={() => setModal(null)} title="Edit Monthly Goals"><GoalForm goals={goals} onSave={saveGoals} onCancel={() => setModal(null)} unitTypes={UNIT_TYPES} /></Modal>
       <Modal open={modal === 'reps'} onClose={() => setModal(null)} title="Manage Salespeople"><RepForm reps={spList} onSave={saveReps} onCancel={() => setModal(null)} /></Modal>
       <Modal open={modal === 'editPga'} onClose={() => setModal(null)} title="Edit PG&A Flat Tiers"><PgaForm tiers={pgaTiers} onSave={savePga} onCancel={() => setModal(null)} /></Modal>
       <Modal open={modal === 'editBe'} onClose={() => setModal(null)} title="Edit Back End Spiffs"><BeForm spiffs={beSpiffs} onSave={saveBe} onCancel={() => setModal(null)} /></Modal>
