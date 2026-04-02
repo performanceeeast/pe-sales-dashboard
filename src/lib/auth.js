@@ -50,36 +50,27 @@ export function canSeeTab(currentUser, tab, storeConfig) {
   if (!currentUser) return false;
 
   switch (tab) {
+    // Everyone
     case 'dashboard': return true;
+    case 'sales': return true; // Deals + Leaderboard + History consolidated
+
+    // Leads — managers + ISM + finance (not regular salespeople)
+    case 'leads': return isManager(currentUser.role) || currentUser.role === 'ism' || isFinanceRole(currentUser.role);
+
+    // Manager — managers only (Goals + GSM + Pricing)
+    case 'manager': return isManager(currentUser.role);
+
+    // F&I — managers + finance roles
+    case 'financeDash': return isManager(currentUser.role) || isFinanceRole(currentUser.role);
+
+    // Legacy keys (kept for backward compat if view state references them)
     case 'deals': return true;
     case 'board': return true;
-    case 'promos': return true;
     case 'history': return true;
-    case 'docs': return true;
-
-    // CRM — disabled for now
-    case 'crm': return false;
-
-    // ISM — only for stores with ISM, not for salespeople
-    case 'leads': return storeConfig?.has_ism !== false && currentUser.role !== 'salesperson' && (isManager(currentUser.role) || currentUser.role === 'ism');
-
-    // Floor traffic — managers + ISM
-    case 'floor': return isManager(currentUser.role) || currentUser.role === 'ism';
-
-    // Goals — managers only
+    case 'promos': return true;
     case 'goals': return isManager(currentUser.role);
-
-    // GSM Dash — managers only, hidden for stores without ISM (use combined view)
-    case 'gsmDash': return isManager(currentUser.role) && storeConfig?.has_ism !== false;
-
-    // F&I Dash — finance roles + managers, hidden for stores without ISM (use combined view)
-    case 'financeDash': return (isManager(currentUser.role) || isFinanceRole(currentUser.role)) && storeConfig?.has_ism !== false;
-
-    // Combined Sales/Finance Manager Dash — only for stores WITHOUT ISM (Cedar Point)
-    case 'mgrDash': return isManager(currentUser.role) && storeConfig?.has_ism === false;
-
-    // Simple leads tab — only for stores WITHOUT ISM (Cedar Point), managers only
-    case 'simpleLeads': return isManager(currentUser.role) && storeConfig?.has_ism === false;
+    case 'gsmDash': return isManager(currentUser.role);
+    case 'crm': return false;
 
     default: return true;
   }

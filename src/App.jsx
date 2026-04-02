@@ -279,20 +279,13 @@ export default function App() {
   }
 
   // ── Tab definitions [key, label, shortLabel, group] ──
+  // ── Consolidated navigation (Phase 1) ──
   const allTabs = [
     ['dashboard', 'DASHBOARD', 'HOME', 'main'],
-    ['deals', 'DEALS', 'DEALS', 'main'],
-    ['board', 'LEADERBOARD', 'BOARD', 'main'],
-    ['crm', 'CRM', 'CRM', 'main'],
-    ['leads', 'ISM LEADS', 'ISM', 'leads'],
-    ['floor', 'TRAFFIC', 'FLOOR', 'leads'],
-    ['goals', 'GOALS', 'GOALS', 'mgmt'],
-    ['promos', 'PRICING & PROMOS', 'PRICING', 'mgmt'],
-    ['gsmDash', 'GSM', 'GSM', 'mgmt'],
+    ['sales', 'SALES', 'SALES', 'main'],
+    ['leads', 'LEADS', 'LEADS', 'leads'],
+    ['manager', 'MANAGER', 'MGR', 'mgmt'],
     ['financeDash', 'F&I', 'F&I', 'mgmt'],
-    ['simpleLeads', 'LEADS', 'LEADS', 'leads'],
-    ['mgrDash', 'MANAGER', 'MGR', 'mgmt'],
-    ['history', 'HISTORY', 'HIST', 'mgmt'],
   ];
   const tabs = allTabs.filter(([k]) => canSeeTab(currentUser, k, storeConfig));
 
@@ -306,44 +299,83 @@ export default function App() {
   const tabContent = (
     <>
       {showAdmin && canManageUsers(currentUser) && <AdminPanel storeId={storeId} storeConfig={storeConfig} />}
+
+      {/* HOME — Dashboard (preserved) */}
       {!showAdmin && view === 'dashboard' && <DashboardTab month={month} year={year} goals={goals} tot={tot} tTgt={tTgt} tStr={tStr} ls={ls} floorTrafficStats={floorTrafficStats} yearlyMonthSales={yearlyMonthSales} ytdTotal={ytdTotal} yearlyRepPerf={yearlyRepPerf} notes={notes} saveNotes={saveNotes} meetingNotes={meetingNotes} saveMeetingNotes={saveMeetingNotes} deals={deals} currentUser={currentUser} act={act} updateDeal={updateDeal} unitTypes={unitTypes} />}
-      {!showAdmin && view === 'crm' && <CRMTab currentUser={currentUser} act={act} onConvertDeal={(custData) => {
-        const newDeal = {
-          id: Date.now().toString(),
-          date: new Date().toISOString().split('T')[0],
-          customer: custData.customer,
-          customer_id: custData.customer_id,
-          salesperson: custData.salesperson,
-          dealNumber: '',
-          units: {},
-          pgaAmount: 0,
-          backEndProducts: [],
-          starChecklist: {},
-          signoffs: {},
-        };
-        const nd = [...deals, newDeal];
-        updateAndSave(setDeals, 'deals', nd);
-        setView('deals');
-        setModal('editDeal');
-      }} />}
-      {!showAdmin && view === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} />}
-      {!showAdmin && view === 'leads' && <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} />}
-      {!showAdmin && view === 'floor' && <FloorLeadsTab month={month} year={year} deals={deals} act={act} spList={spList} floorDailyLeadCounts={floorDailyLeadCounts} floorBulkLeadCounts={floorBulkLeadCounts} yearlyDeals={yearlyDeals} yearlyMonthData={yearlyMonthData} saveFloorDLC={saveFloorDLC} saveFloorBLC={saveFloorBLC} />}
-      {!showAdmin && view === 'board' && <LeaderboardTab month={month} year={year} deals={deals} act={act} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} setSelRep={setSelRep} unitTypes={unitTypes} />}
-      {!showAdmin && view === 'goals' && <GoalsTab goals={goals} tot={tot} tTgt={tTgt} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} contests={contests} spList={spList} act={act} modal={modal} setModal={setModal} saveGoals={saveGoals} saveReps={saveReps} savePga={savePga} saveBe={saveBe} saveHL={saveHL} saveCT={saveCT} unitTypes={unitTypes} />}
-      {!showAdmin && view === 'promos' && <PromosTab currentUser={currentUser} />}
-      {!showAdmin && view === 'gsmDash' && <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />}
-      {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} act={act} storeConfig={storeConfig} storeTheme={storeTheme} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />}
-      {!showAdmin && view === 'simpleLeads' && <SimpleLeadsTab month={month} year={year} deals={deals} act={act} dailyLeadCounts={dailyLeadCounts} saveDLC={saveDLC} floorDailyLeadCounts={floorDailyLeadCounts} saveFloorDLC={saveFloorDLC} />}
-      {!showAdmin && view === 'mgrDash' && (
-        <div>
-          <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />
-          <div style={{ marginTop: 16 }}>
-            <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} act={act} storeConfig={storeConfig} storeTheme={storeTheme} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />
+
+      {/* SALES — Deals + Leaderboard + History (consolidated) */}
+      {!showAdmin && view === 'sales' && (() => {
+        const [salesSub, setSalesSub] = React.useState('deals');
+        return (
+          <div>
+            <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
+              {[{ id: 'deals', label: 'DEALS' }, { id: 'board', label: 'LEADERBOARD' }, { id: 'history', label: 'HISTORY' }].map((v) => (
+                <button key={v.id} onClick={() => setSalesSub(v.id)} style={{
+                  padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                  fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
+                  background: salesSub === v.id ? 'var(--brand-red)' : 'transparent',
+                  color: salesSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
+                  transition: 'all .15s',
+                }}>{v.label}</button>
+              ))}
+            </div>
+            {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} />}
+            {salesSub === 'board' && <LeaderboardTab month={month} year={year} deals={deals} act={act} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} setSelRep={setSelRep} unitTypes={unitTypes} />}
+            {salesSub === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
           </div>
-        </div>
-      )}
-      {!showAdmin && view === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
+        );
+      })()}
+
+      {/* LEADS — ISM + Floor (Goldsboro) or SimpleLeads (Cedar Point) */}
+      {!showAdmin && view === 'leads' && (() => {
+        if (storeConfig?.has_ism === false) {
+          return <SimpleLeadsTab month={month} year={year} deals={deals} act={act} dailyLeadCounts={dailyLeadCounts} saveDLC={saveDLC} floorDailyLeadCounts={floorDailyLeadCounts} saveFloorDLC={saveFloorDLC} />;
+        }
+        const [leadsSub, setLeadsSub] = React.useState('ism');
+        return (
+          <div>
+            <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
+              {[{ id: 'ism', label: 'INTERNET LEADS' }, { id: 'floor', label: 'FLOOR TRAFFIC' }].map((v) => (
+                <button key={v.id} onClick={() => setLeadsSub(v.id)} style={{
+                  padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                  fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
+                  background: leadsSub === v.id ? 'var(--brand-red)' : 'transparent',
+                  color: leadsSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
+                  transition: 'all .15s',
+                }}>{v.label}</button>
+              ))}
+            </div>
+            {leadsSub === 'ism' && <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} />}
+            {leadsSub === 'floor' && <FloorLeadsTab month={month} year={year} deals={deals} act={act} spList={spList} floorDailyLeadCounts={floorDailyLeadCounts} floorBulkLeadCounts={floorBulkLeadCounts} yearlyDeals={yearlyDeals} yearlyMonthData={yearlyMonthData} saveFloorDLC={saveFloorDLC} saveFloorBLC={saveFloorBLC} />}
+          </div>
+        );
+      })()}
+
+      {/* MANAGER — Goals + GSM + Pricing (consolidated) */}
+      {!showAdmin && view === 'manager' && (() => {
+        const [mgrSub, setMgrSub] = React.useState('goals');
+        return (
+          <div>
+            <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
+              {[{ id: 'goals', label: 'GOALS & SPIFFS' }, { id: 'gsm', label: 'ACCOUNTABILITY' }, { id: 'pricing', label: 'PRICING' }].map((v) => (
+                <button key={v.id} onClick={() => setMgrSub(v.id)} style={{
+                  padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                  fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
+                  background: mgrSub === v.id ? 'var(--brand-red)' : 'transparent',
+                  color: mgrSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
+                  transition: 'all .15s',
+                }}>{v.label}</button>
+              ))}
+            </div>
+            {mgrSub === 'goals' && <GoalsTab goals={goals} tot={tot} tTgt={tTgt} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} contests={contests} spList={spList} act={act} modal={modal} setModal={setModal} saveGoals={saveGoals} saveReps={saveReps} savePga={savePga} saveBe={saveBe} saveHL={saveHL} saveCT={saveCT} unitTypes={unitTypes} />}
+            {mgrSub === 'gsm' && <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />}
+            {mgrSub === 'pricing' && <PromosTab currentUser={currentUser} />}
+          </div>
+        );
+      })()}
+
+      {/* F&I — Preserved exactly (already has internal sub-views) */}
+      {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} act={act} storeConfig={storeConfig} storeTheme={storeTheme} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />}
     </>
   );
 
