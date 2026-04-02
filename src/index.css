@@ -58,6 +58,11 @@ button:active {
   transform: scale(0.97);
 }
 
+/* ── Spinner animation ── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ══════════════════════════════════
    MOBILE RESPONSIVE
    ══════════════════════════════════ */

@@ -15,7 +15,7 @@ const DOC_CATEGORIES = [
 ];
 
 export default function PromosTab({ currentUser, storeId, storeConfig, promoRecords, savePromoRecords, pricingRecords, savePricingRecords }) {
-  const [subView, setSubView] = useState('promos'); // promos | pricing | docs | upload
+  const [subView, setSubView] = useState('promos');
   const [modal, setModal] = useState(null);
   const [docs, setDocs] = useState([]);
   const [docsLoading, setDocsLoading] = useState(false);
@@ -24,20 +24,21 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
   const [docFilter, setDocFilter] = useState('all');
   const [viewingDoc, setViewingDoc] = useState(null);
 
-  // Upload + parse state
   const [uploadType, setUploadType] = useState('monthly_promo');
   const [uploadBrand, setUploadBrand] = useState('');
   const [uploadStartDate, setUploadStartDate] = useState('');
   const [uploadEndDate, setUploadEndDate] = useState('');
   const [parsedRecords, setParsedRecords] = useState([]);
   const [parseWarnings, setParseWarnings] = useState([]);
-  const [editingRecord, setEditingRecord] = useState(null);
+
+  // Upload status feedback
+  const [uploadStatus, setUploadStatus] = useState(null); // { type: 'success'|'error'|'info', message: string }
 
   const canManage = canManagePromos(currentUser);
-  const unitTypes = storeConfig?.unit_types || [];
   const activePromos = getActivePromos(promoRecords, storeId);
   const expiringPromos = getExpiringPromos(promoRecords, storeId);
 
+  // Load documents whenever the docs view is shown
   const refreshDocs = useCallback(async () => {
     setDocsLoading(true);
     const d = await loadDocuments(docFilter === 'all' ? null : docFilter, storeId);
@@ -47,22 +48,33 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
 
   useEffect(() => { if (subView === 'docs') refreshDocs(); }, [subView, refreshDocs]);
 
+  // Auto-clear status after 5 seconds
+  useEffect(() => {
+    if (uploadStatus) {
+      const t = setTimeout(() => setUploadStatus(null), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [uploadStatus]);
+
   async function handleFileUpload(e) {
     const file = e.target.files[0];
     if (!file) return;
     setUploading(true);
+    setUploadStatus({ type: 'info', message: `Uploading ${file.name}...` });
 
-    // Try to upload to Supabase storage (may fail if bucket/table not set up)
+    // Try to upload to Supabase storage
     let doc = null;
     try {
       doc = await uploadDocument(file, uploadCategory, currentUser.id, storeId);
     } catch (err) {
-      console.warn('Document storage unavailable, continuing with parse only:', err);
+      console.warn('Document storage unavailable:', err);
     }
 
-    // If Excel/CSV, parse it regardless of whether storage succeeded
     const isExcel = file.name.match(/\.(xlsx?|xls|csv)$/i);
+
     if (isExcel && savePromoRecords) {
+      // Excel/CSV — parse into structured records
+      setUploadStatus({ type: 'info', message: 'Analyzing file...' });
       try {
         const data = await file.arrayBuffer();
         const isPricingType = ['price_list', 'msrp_sheet', 'carryover_pricing'].includes(uploadType);
@@ -73,27 +85,45 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
           effectiveEnd: uploadEndDate,
           fileType: uploadType,
         });
+
         const warnings = [...result.warnings];
-        if (!doc) warnings.unshift('Note: File was parsed but could not be stored in document library. The extracted data below is still usable.');
-        setParsedRecords(result.records.map((r) => ({
-          ...r,
-          sourceFileId: doc?.id || null,
-          sourceFileName: file.name,
-          createdBy: currentUser?.id || '',
-          _isPricing: isPricingType,
-        })));
-        setParseWarnings(warnings);
-        setSubView('upload');
+        if (!doc) warnings.unshift('Note: File could not be stored in document library, but the extracted data below is usable.');
+
+        if (result.records.length > 0) {
+          setParsedRecords(result.records.map((r) => ({
+            ...r,
+            sourceFileId: doc?.id || null,
+            sourceFileName: file.name,
+            createdBy: currentUser?.id || '',
+            _isPricing: isPricingType,
+          })));
+          setParseWarnings(warnings);
+          setSubView('upload');
+          setUploadStatus({ type: 'success', message: `Extracted ${result.records.length} record(s) from ${file.name}. Review and publish below.` });
+        } else {
+          setParseWarnings(warnings);
+          setUploadStatus({ type: 'error', message: 'No records could be extracted. The file may have unexpected column headers. It has been stored in Documents if upload succeeded.' });
+          if (doc) {
+            refreshDocs();
+            setSubView('docs');
+          }
+        }
       } catch (err) {
         console.error('Parse error:', err);
-        alert('Could not parse this file. Error: ' + err.message);
+        setUploadStatus({ type: 'error', message: 'Parse failed: ' + err.message + (doc ? '. File saved to Documents.' : '') });
+        if (doc) {
+          refreshDocs();
+          setSubView('docs');
+        }
       }
-    } else if (!isExcel) {
-      // Non-Excel file (PDF, image) — just store it
+    } else {
+      // Non-Excel (PDF, image, etc.) — just store as document
       if (doc) {
-        if (subView === 'docs') refreshDocs();
+        setUploadStatus({ type: 'success', message: `${file.name} uploaded to Documents.` });
+        refreshDocs();
+        setSubView('docs');
       } else {
-        alert('Could not upload file. Check that the Supabase documents storage bucket exists and has proper permissions.');
+        setUploadStatus({ type: 'error', message: 'Upload failed. The Supabase documents storage bucket may not exist. Create it in your Supabase dashboard under Storage.' });
       }
     }
 
@@ -123,15 +153,11 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
     if (promos.length > 0) savePromoRecords([...(promoRecords || []), ...promos]);
     if (pricing.length > 0) savePricingRecords([...(pricingRecords || []), ...pricing]);
     setParsedRecords([]);
+    setUploadStatus({ type: 'success', message: `Published ${promos.length + pricing.length} record(s).` });
   }
 
-  function deletePromoRecord(id) {
-    savePromoRecords((promoRecords || []).filter((r) => r.id !== id));
-  }
-
-  function archivePromoRecord(id) {
-    savePromoRecords((promoRecords || []).map((r) => r.id === id ? { ...r, status: 'archived', updatedAt: new Date().toISOString() } : r));
-  }
+  function deletePromoRecord(id) { savePromoRecords((promoRecords || []).filter((r) => r.id !== id)); }
+  function archivePromoRecord(id) { savePromoRecords((promoRecords || []).map((r) => r.id === id ? { ...r, status: 'archived', updatedAt: new Date().toISOString() } : r)); }
 
   function formatFileSize(bytes) {
     if (!bytes) return '\u2014';
@@ -139,6 +165,11 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
     if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / 1048576).toFixed(1) + ' MB';
   }
+
+  // Determine review table headers based on record type
+  const reviewHeaders = parsedRecords.length > 0 && parsedRecords[0]?._isPricing
+    ? ['Year', 'Make', 'Model', 'MSRP', 'Freight', '']
+    : ['Brand', 'Program', 'APR', 'Rebate', 'Dates', 'Categories', ''];
 
   return (
     <div>
@@ -162,7 +193,22 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
         </div>
       </div>
 
-      {/* Upload bar (shown on all sub-views for managers) */}
+      {/* Status Banner */}
+      {uploadStatus && (
+        <div style={{
+          background: uploadStatus.type === 'success' ? '#dcfce7' : uploadStatus.type === 'error' ? '#fef2f2' : '#eff6ff',
+          border: `1px solid ${uploadStatus.type === 'success' ? '#bbf7d0' : uploadStatus.type === 'error' ? '#fecaca' : '#bfdbfe'}`,
+          borderRadius: 8, padding: '10px 16px', marginBottom: 14,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        }}>
+          <span style={{ fontFamily: FM, fontSize: 11, color: uploadStatus.type === 'success' ? '#16a34a' : uploadStatus.type === 'error' ? '#dc2626' : '#2563eb', fontWeight: 600 }}>
+            {uploadStatus.type === 'success' ? '\u2705' : uploadStatus.type === 'error' ? '\u274C' : '\u23F3'} {uploadStatus.message}
+          </span>
+          <button onClick={() => setUploadStatus(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}>{'\u2715'}</button>
+        </div>
+      )}
+
+      {/* Upload bar */}
       {canManage && subView !== 'upload' && (
         <div style={{ ...card, padding: '12px 16px', marginBottom: 14, display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ minWidth: 140 }}>
@@ -188,31 +234,35 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
           </div>
           <div style={{ flex: 1, minWidth: 180 }}>
             <label style={lbl}>UPLOAD FILE</label>
-            <input type="file" accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.doc,.docx" onChange={handleFileUpload} style={{
+            <input type="file" accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.doc,.docx" onChange={handleFileUpload} disabled={uploading} style={{
               fontFamily: FM, fontSize: 11, color: 'var(--text-primary)', padding: 4,
               background: 'var(--input-bg)', border: '1px solid var(--input-border)',
               borderRadius: 6, width: '100%', boxSizing: 'border-box',
+              opacity: uploading ? 0.5 : 1,
             }} />
           </div>
-          {uploading && <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--brand-red)', fontWeight: 700 }}>UPLOADING...</span>}
+          {uploading && (
+            <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--brand-red)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid var(--brand-red)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              PROCESSING...
+            </div>
+          )}
         </div>
       )}
 
       {/* ═══ ACTIVE PROMOS VIEW ═══ */}
       {subView === 'promos' && (
         <div>
-          {/* Expiring soon alert */}
           {expiringPromos.length > 0 && (
             <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 16px', marginBottom: 14, fontFamily: FM, fontSize: 11, color: '#d97706', fontWeight: 600 }}>
               {'\u26A0\uFE0F'} {expiringPromos.length} promo{expiringPromos.length > 1 ? 's' : ''} expiring within 7 days
             </div>
           )}
-
           {activePromos.length === 0 ? (
             <div style={{ ...card, padding: 40, textAlign: 'center' }}>
               <div style={{ fontSize: 32, marginBottom: 8 }}>{'\uD83C\uDF1F'}</div>
               <div style={{ fontFamily: FH, fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>NO ACTIVE PROMOTIONS</div>
-              <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>Upload promo files above to get started. Excel files will be auto-parsed.</div>
+              <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>Upload an Excel promo file above. It will be auto-analyzed and you can review/publish the extracted records.</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -234,9 +284,7 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
                         {p.notes && <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>{p.notes}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                        <div style={{ fontFamily: FM, fontSize: 9, color: isExpiring ? '#d97706' : 'var(--text-muted)' }}>
-                          {p.effectiveStart || '?'} — {p.effectiveEnd || 'Ongoing'}
-                        </div>
+                        <div style={{ fontFamily: FM, fontSize: 9, color: isExpiring ? '#d97706' : 'var(--text-muted)' }}>{p.effectiveStart || '?'} — {p.effectiveEnd || 'Ongoing'}</div>
                         {canManage && (
                           <div style={{ display: 'flex', gap: 4 }}>
                             <button onClick={() => archivePromoRecord(p.id)} style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>ARCHIVE</button>
@@ -250,8 +298,6 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
               })}
             </div>
           )}
-
-          {/* Archived promos */}
           {(promoRecords || []).filter((p) => p.status === 'archived' || p.status === 'expired').length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div style={{ fontFamily: FH, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 1, marginBottom: 6 }}>ARCHIVED ({(promoRecords || []).filter((p) => p.status === 'archived' || p.status === 'expired').length})</div>
@@ -268,34 +314,32 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
         </div>
       )}
 
-      {/* ═══ PRICING RECORDS VIEW ═══ */}
+      {/* ═══ PRICING VIEW ═══ */}
       {subView === 'pricing' && (
-        <div>
-          <div style={{ ...card, overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>{['Year', 'Make', 'Model', 'Trim', 'Category', 'MSRP', 'Freight', 'Status', ...(canManage ? [''] : [])].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
-              <tbody>
-                {(pricingRecords || []).length === 0 && <tr><td colSpan={9} style={{ ...TD, padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO PRICING RECORDS. Upload a price list to get started.</td></tr>}
-                {(pricingRecords || []).filter((r) => r.status === 'published').map((r) => (
-                  <tr key={r.id}>
-                    <td style={{ ...TD, fontFamily: FM }}>{r.year}</td>
-                    <td style={{ ...TD, fontFamily: FH, fontWeight: 600 }}>{r.make}</td>
-                    <td style={TD}>{r.model}</td>
-                    <td style={{ ...TD, fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>{r.trim || '\u2014'}</td>
-                    <td style={TD}><span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: 'var(--text-muted)' }}>{r.category || '\u2014'}</span></td>
-                    <td style={{ ...TD, fontFamily: FM, fontWeight: 700 }}>{r.msrp ? '$' + r.msrp.toLocaleString() : '\u2014'}</td>
-                    <td style={{ ...TD, fontFamily: FM, color: 'var(--text-secondary)' }}>{r.freight ? '$' + r.freight.toLocaleString() : '\u2014'}</td>
-                    <td style={TD}><span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: PROMO_STATUSES[r.status]?.color, background: PROMO_STATUSES[r.status]?.bg, padding: '1px 6px', borderRadius: 3 }}>{PROMO_STATUSES[r.status]?.label}</span></td>
-                    {canManage && <td style={TD}><button onClick={() => savePricingRecords((pricingRecords || []).filter((x) => x.id !== r.id))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>{'\u2715'}</button></td>}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div style={{ ...card, overflow: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr>{['Year', 'Make', 'Model', 'Trim', 'Category', 'MSRP', 'Freight', 'Status', ...(canManage ? [''] : [])].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+            <tbody>
+              {(pricingRecords || []).filter((r) => r.status === 'published').length === 0 && <tr><td colSpan={9} style={{ ...TD, padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO PRICING RECORDS. Upload a price list Excel file to get started.</td></tr>}
+              {(pricingRecords || []).filter((r) => r.status === 'published').map((r) => (
+                <tr key={r.id}>
+                  <td style={{ ...TD, fontFamily: FM }}>{r.year}</td>
+                  <td style={{ ...TD, fontFamily: FH, fontWeight: 600 }}>{r.make}</td>
+                  <td style={TD}>{r.model}</td>
+                  <td style={{ ...TD, fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>{r.trim || '\u2014'}</td>
+                  <td style={TD}><span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: 'var(--text-muted)' }}>{r.category || '\u2014'}</span></td>
+                  <td style={{ ...TD, fontFamily: FM, fontWeight: 700 }}>{r.msrp ? '$' + r.msrp.toLocaleString() : '\u2014'}</td>
+                  <td style={{ ...TD, fontFamily: FM, color: 'var(--text-secondary)' }}>{r.freight ? '$' + r.freight.toLocaleString() : '\u2014'}</td>
+                  <td style={TD}><span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: PROMO_STATUSES[r.status]?.color, background: PROMO_STATUSES[r.status]?.bg, padding: '1px 6px', borderRadius: 3 }}>{PROMO_STATUSES[r.status]?.label}</span></td>
+                  {canManage && <td style={TD}><button onClick={() => savePricingRecords((pricingRecords || []).filter((x) => x.id !== r.id))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>{'\u2715'}</button></td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* ═══ UPLOAD REVIEW VIEW ═══ */}
+      {/* ═══ REVIEW VIEW ═══ */}
       {subView === 'upload' && parsedRecords.length > 0 && (
         <div>
           {parseWarnings.length > 0 && (
@@ -303,18 +347,16 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
               {parseWarnings.map((w, i) => <div key={i} style={{ fontFamily: FM, fontSize: 11, color: '#2563eb', lineHeight: 1.6 }}>{w}</div>)}
             </div>
           )}
-
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <div style={{ fontFamily: FH, fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: 1 }}>REVIEW PARSED RECORDS ({parsedRecords.length})</div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setParsedRecords([])} style={b2}>DISCARD ALL</button>
-              <button onClick={publishAllDrafts} style={b1}>PUBLISH ALL ({parsedRecords.length})</button>
+              <button onClick={() => { setParsedRecords([]); setSubView('promos'); }} style={b2}>DISCARD ALL</button>
+              <button onClick={() => { publishAllDrafts(); setSubView('promos'); }} style={b1}>PUBLISH ALL ({parsedRecords.length})</button>
             </div>
           </div>
-
           <div style={{ ...card, overflow: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>{parsedRecords[0]?._isPricing ? ['Year', 'Make', 'Model', 'MSRP', 'Freight', ''] : ['Brand', 'Program', 'APR', 'Rebate', 'Dates', 'Categories', '']}.map((h) => <th key={h} style={TH}>{h}</th>)</tr></thead>
+              <thead><tr>{reviewHeaders.map((h) => <th key={h || '_'} style={TH}>{h}</th>)}</tr></thead>
               <tbody>
                 {parsedRecords.map((r) => r._isPricing ? (
                   <tr key={r.id}>
@@ -348,6 +390,14 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
         </div>
       )}
 
+      {/* Show message when review tab is active but records are empty (after publishing all) */}
+      {subView === 'upload' && parsedRecords.length === 0 && (
+        <div style={{ ...card, padding: 30, textAlign: 'center' }}>
+          <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>All records have been published or discarded.</div>
+          <button onClick={() => setSubView('promos')} style={{ ...b2, marginTop: 10 }}>BACK TO PROMOS</button>
+        </div>
+      )}
+
       {/* ═══ DOCUMENTS VIEW ═══ */}
       {subView === 'docs' && (
         <div>
@@ -360,12 +410,11 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
               );
             })}
           </div>
-
           {docsLoading ? (
             <div style={{ padding: 30, textAlign: 'center', fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>LOADING...</div>
           ) : docs.length === 0 ? (
             <div style={{ ...card, padding: 40, textAlign: 'center' }}>
-              <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>No documents uploaded.</div>
+              <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>No documents uploaded yet.</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -379,7 +428,7 @@ export default function PromosTab({ currentUser, storeId, storeConfig, promoReco
                     <div style={{ fontSize: 20 }}>{fileIcon}</div>
                     <div style={{ flex: 1, minWidth: 120 }}>
                       <div style={{ fontFamily: FH, fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{d.name}</div>
-                      <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>{cat.label} · {formatFileSize(d.file_size)} · {d.created_at ? new Date(d.created_at).toLocaleDateString() : ''}</div>
+                      <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>{cat.label} {'\u00B7'} {formatFileSize(d.file_size)} {'\u00B7'} {d.created_at ? new Date(d.created_at).toLocaleDateString() : ''}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 4 }}>
                       <button onClick={() => setViewingDoc(d)} style={{ ...b1, padding: '4px 10px', fontSize: 9 }}>VIEW</button>
