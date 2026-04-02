@@ -23,6 +23,7 @@ import GSMDashTab from './tabs/GSMDashTab';
 import FIDashTab from './tabs/FIDashTab';
 import CRMTab from './tabs/crm/index';
 import PromosTab from './tabs/PromosTab';
+import SimpleLeadsTab from './tabs/SimpleLeadsTab';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = styles;
 const SESSION_KEY = 'peg-auth-session';
@@ -282,6 +283,7 @@ export default function App() {
     ['promos', 'PRICING & PROMOS', 'PRICING', 'mgmt'],
     ['gsmDash', 'GSM', 'GSM', 'mgmt'],
     ['financeDash', 'F&I', 'F&I', 'mgmt'],
+    ['simpleLeads', 'LEADS', 'LEADS', 'leads'],
     ['mgrDash', 'MANAGER', 'MGR', 'mgmt'],
     ['history', 'HISTORY', 'HIST', 'mgmt'],
   ];
@@ -325,6 +327,7 @@ export default function App() {
       {!showAdmin && view === 'promos' && <PromosTab currentUser={currentUser} />}
       {!showAdmin && view === 'gsmDash' && <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />}
       {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} />}
+      {!showAdmin && view === 'simpleLeads' && <SimpleLeadsTab month={month} year={year} deals={deals} act={act} dailyLeadCounts={dailyLeadCounts} saveDLC={saveDLC} floorDailyLeadCounts={floorDailyLeadCounts} saveFloorDLC={saveFloorDLC} />}
       {!showAdmin && view === 'mgrDash' && (
         <div>
           <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />

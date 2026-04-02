@@ -78,6 +78,9 @@ export function canSeeTab(currentUser, tab, storeConfig) {
     // Combined Sales/Finance Manager Dash — only for stores WITHOUT ISM (Cedar Point)
     case 'mgrDash': return isManager(currentUser.role) && storeConfig?.has_ism === false;
 
+    // Simple leads tab — only for stores WITHOUT ISM (Cedar Point), managers only
+    case 'simpleLeads': return isManager(currentUser.role) && storeConfig?.has_ism === false;
+
     default: return true;
   }
 }
