@@ -88,13 +88,8 @@ export default function App() {
   // Load CRM users for the selected store
   useEffect(() => {
     if (storeId) {
-      loadUsers(storeId).then((users) => {
-        if (users.length > 0) setCrmUsers(users);
-        else {
-          // Fallback: try loading all users (store_id column may not exist yet)
-          loadUsers().then((allUsers) => { if (allUsers.length > 0) setCrmUsers(allUsers); });
-        }
-      });
+      setCrmUsers([]);
+      loadUsers(storeId).then((users) => setCrmUsers(users));
     }
   }, [storeId]);
 

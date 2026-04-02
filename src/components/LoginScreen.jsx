@@ -15,9 +15,7 @@ export default function LoginScreen({ onLogin, storeId, storeTheme, onChangeStor
 
   useEffect(() => {
     (async () => {
-      let u = await loadUsers(storeId);
-      // Fallback: if no users found for this store, load all users
-      if (u.length === 0) u = await loadUsers();
+      const u = await loadUsers(storeId);
       setUsers(u);
       setUsersLoading(false);
     })();

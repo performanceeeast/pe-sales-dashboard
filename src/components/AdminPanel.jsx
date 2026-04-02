@@ -19,8 +19,7 @@ export default function AdminPanel({ storeId, storeConfig }) {
 
   useEffect(() => {
     (async () => {
-      let u = await loadUsers(storeId);
-      if (u.length === 0) u = await loadUsers();
+      const u = await loadUsers(storeId);
       setUsers(u);
       setLoading(false);
     })();

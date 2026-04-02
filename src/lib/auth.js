@@ -57,8 +57,8 @@ export function canSeeTab(currentUser, tab, storeConfig) {
     case 'history': return true;
     case 'docs': return true;
 
-    // CRM — admin only (testing phase)
-    case 'crm': return currentUser.role === 'admin';
+    // CRM — disabled for now
+    case 'crm': return false;
 
     // ISM — only for stores with ISM, not for salespeople
     case 'leads': return storeConfig?.has_ism !== false && currentUser.role !== 'salesperson' && (isManager(currentUser.role) || currentUser.role === 'ism');
