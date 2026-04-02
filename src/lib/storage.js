@@ -116,14 +116,22 @@ export async function saveUsers(users, storeId) {
   }
 }
 
-export async function saveOneUser(user) {
+export async function saveOneUser(user, isNew = false) {
   try {
-    const { error } = await supabase
-      .from('crm_users')
-      .upsert({ id: user.id, name: user.name, role: user.role, pin: user.pin, active: user.active !== false, store_id: user.store_id || 'goldsboro' });
-    if (error) throw error;
+    const row = { id: user.id, name: user.name, role: user.role, pin: user.pin, active: user.active !== false, store_id: user.store_id || 'goldsboro' };
+    let result;
+    if (isNew) {
+      result = await supabase.from('crm_users').insert(row);
+    } else {
+      result = await supabase.from('crm_users').update(row).eq('id', user.id);
+    }
+    if (result.error) {
+      console.error('saveOneUser error:', result.error);
+      alert('Error saving user: ' + result.error.message);
+    }
   } catch (e) {
     console.error('saveOneUser error:', e);
+    alert('Error saving user: ' + e.message);
   }
 }
 

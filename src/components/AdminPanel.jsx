@@ -43,7 +43,7 @@ export default function AdminPanel({ storeId, storeConfig }) {
     if (!newName.trim() || !newPin || newPin.length !== 4) return;
     const id = newName.trim().toLowerCase().split(' ')[0] + '_' + Date.now().toString().slice(-4);
     const newUser = { id, name: newName.trim(), role: newRole, pin: newPin, active: true, store_id: newStore };
-    await saveOneUser(newUser);
+    await saveOneUser(newUser, true);
     setNewName(''); setNewPin(''); setNewRole('salesperson'); setNewStore(storeId || 'goldsboro');
     await refresh();
   }
