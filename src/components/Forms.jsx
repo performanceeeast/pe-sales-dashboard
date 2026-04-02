@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { UNIT_TYPES, UNIT_COLORS, LEAD_SOURCES, BACK_END_PRODUCTS, STAR_CHECKLIST } from '../lib/constants';
+import { UNIT_TYPES as DEFAULT_UNIT_TYPES, UNIT_COLORS, LEAD_SOURCES, BACK_END_PRODUCTS as DEFAULT_BE_PRODUCTS, STAR_CHECKLIST } from '../lib/constants';
 import { styles, FM, FH } from './SharedUI';
 
 const { input: inp, btn1: b1, btn2: b2, label: lbl } = styles;
 
 /* ═══ Deal Form (single page) ═══ */
-export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal }) {
+export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTypes: propUnitTypes, backEndProducts: propBEProducts }) {
+  const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
+  const BACK_END_PRODUCTS = propBEProducts || DEFAULT_BE_PRODUCTS;
   const [f, sF] = useState(editDeal ? { ...editDeal } : {
     date: new Date().toISOString().split('T')[0],
     customer: '', salesperson: '', dealNumber: '',

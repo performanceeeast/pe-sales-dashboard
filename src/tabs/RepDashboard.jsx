@@ -1,14 +1,15 @@
 import React from 'react';
-import { MONTHS, UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
+import { MONTHS, UNIT_TYPES as DEFAULT_UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
 import { getSpUnits, getRepSpiffs } from '../lib/calculations';
 import { StatCard, styles, FM, FH, FB } from '../components/SharedUI';
 
 const { card, cardHead: cH, btn2: b2, th: TH, td: TD } = styles;
 
-export default function RepDashboard({ selRep, setSelRep, spList, deals, leads, contests, month, year, pgaTiers, beSpiffs, hitList }) {
+export default function RepDashboard({ selRep, setSelRep, spList, deals, leads, contests, month, year, pgaTiers, beSpiffs, hitList, unitTypes: propUnitTypes, storeTheme }) {
+  const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   const rep = spList.find((s) => s.id === selRep);
-  const uRep = getSpUnits(deals, selRep);
-  const sf = getRepSpiffs(deals, selRep, pgaTiers, beSpiffs, hitList);
+  const uRep = getSpUnits(deals, selRep, UNIT_TYPES);
+  const sf = getRepSpiffs(deals, selRep, pgaTiers, beSpiffs, hitList, UNIT_TYPES);
   const rl = leads.filter((l) => l.salesperson === selRep);
   const repContests = contests.filter((c) => c.winners?.includes(selRep));
 
@@ -17,7 +18,7 @@ export default function RepDashboard({ selRep, setSelRep, spList, deals, leads, 
       <div style={{ background: 'var(--header-bg)', borderBottom: '3px solid var(--header-border)', padding: '10px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100, boxShadow: 'var(--shadow-sm)', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button onClick={() => setSelRep(null)} style={{ ...b2, padding: '6px 12px', fontSize: 13 }}>← BACK</button>
-          <img src="/logo.png" alt="Performance East Inc." style={{ height: 30, objectFit: 'contain' }} />
+          <img src={storeTheme?.logo || '/logo.png'} alt="Performance East Inc." style={{ height: 30, objectFit: 'contain' }} />
           <div style={{ width: 1, height: 28, background: 'var(--border-primary)' }} />
           <div>
             <div style={{ fontFamily: FH, fontSize: 17, fontWeight: 700, color: 'var(--brand-red)', letterSpacing: 1, lineHeight: 1 }}>{rep?.name?.toUpperCase()}</div>
@@ -102,7 +103,7 @@ export default function RepDashboard({ selRep, setSelRep, spList, deals, leads, 
           </div>
         </div>
       </div>
-      <div style={{ borderTop: '1px solid var(--border-primary)', padding: '10px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, fontFamily: FM, letterSpacing: 1 }}>PERFORMANCE EAST INC · SALES GOAL TRACKER · GOLDSBORO, NC</div>
+      <div style={{ borderTop: '1px solid var(--border-primary)', padding: '10px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 10, fontFamily: FM, letterSpacing: 1 }}>{storeTheme?.footer || 'PERFORMANCE EAST INC · SALES GOAL TRACKER · GOLDSBORO, NC'}</div>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, LineChart, Line,
 } from 'recharts';
-import { MONTHS, BACK_END_PRODUCTS } from '../lib/constants';
+import { MONTHS, BACK_END_PRODUCTS as DEFAULT_BE_PRODUCTS } from '../lib/constants';
 import { Modal, ProgressBar, styles, FM, FH } from '../components/SharedUI';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = styles;
@@ -21,7 +21,9 @@ export default function FIDashTab({
   month, year, deals, currentUser,
   fiKpis, saveFiKpis, fiDeals, saveFiDeals,
   fiTargets, saveFiTargets, yearlyMonthData,
+  backEndProducts: propBEProducts,
 }) {
+  const BACK_END_PRODUCTS = propBEProducts || DEFAULT_BE_PRODUCTS;
   const [modal, setModal] = useState(null);
   const [editTargets, setEditTargets] = useState(false);
 

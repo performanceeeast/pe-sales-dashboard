@@ -3,7 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { MONTHS, UNIT_TYPES, UNIT_COLORS, STAR_CHECKLIST } from '../lib/constants';
+import { MONTHS, UNIT_TYPES as DEFAULT_UNIT_TYPES, UNIT_COLORS, STAR_CHECKLIST } from '../lib/constants';
 import { ProgressBar, StatCard, styles, FM, FH } from '../components/SharedUI';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = styles;
@@ -13,7 +13,9 @@ export default function DashboardTab({
   ls, floorTrafficStats, yearlyMonthSales, ytdTotal, yearlyRepPerf,
   notes, saveNotes, meetingNotes, saveMeetingNotes,
   deals, currentUser, act, updateDeal,
+  unitTypes: propUnitTypes,
 }) {
+  const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   const [noteTitle, setNoteTitle] = useState('');
   const [noteText, setNoteText] = useState('');
   const [mtgDate, setMtgDate] = useState(new Date().toISOString().split('T')[0]);

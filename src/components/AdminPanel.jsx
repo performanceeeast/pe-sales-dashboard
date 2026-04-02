@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { loadUsers, saveUsers, migrateFromLocalStorage } from '../lib/storage';
-import { ROLES } from '../lib/auth';
+import { ROLES, getRolesForStore } from '../lib/auth';
 import { styles, FM, FH } from './SharedUI';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = styles;
 
-export default function AdminPanel() {
+export default function AdminPanel({ storeId, storeConfig }) {
+  const storeRoles = storeConfig ? getRolesForStore(storeConfig) : ROLES;
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
@@ -18,21 +19,22 @@ export default function AdminPanel() {
 
   useEffect(() => {
     (async () => {
-      const u = await loadUsers();
+      let u = await loadUsers(storeId);
+      if (u.length === 0) u = await loadUsers();
       setUsers(u);
       setLoading(false);
     })();
-  }, []);
+  }, [storeId]);
 
   async function persist(updated) {
     setUsers(updated);
-    await saveUsers(updated);
+    await saveUsers(updated, storeId);
   }
 
   function addUser() {
     if (!newName.trim() || !newPin || newPin.length !== 4) return;
     const id = newName.trim().toLowerCase().split(' ')[0] + '_' + Date.now().toString().slice(-4);
-    persist([...users, { id, name: newName.trim(), role: newRole, pin: newPin, active: true }]);
+    persist([...users, { id, name: newName.trim(), role: newRole, pin: newPin, active: true, ...(storeId ? { store_id: storeId } : {}) }]);
     setNewName(''); setNewPin(''); setNewRole('salesperson');
   }
 
@@ -60,7 +62,7 @@ export default function AdminPanel() {
                   <td style={{ ...TD, fontFamily: FH, fontWeight: 600 }}>{u.name}</td>
                   <td style={TD}>
                     <select value={u.role} onChange={(e) => persist(users.map((x) => x.id === u.id ? { ...x, role: e.target.value } : x))} style={{ ...inp, width: 'auto', padding: '3px 6px', fontSize: 10 }}>
-                      {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                      {Object.entries(storeRoles).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
                   </td>
                   <td style={TD}>
@@ -98,7 +100,7 @@ export default function AdminPanel() {
             <div style={{ minWidth: 110 }}>
               <label style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', letterSpacing: 1, display: 'block', marginBottom: 3 }}>ROLE</label>
               <select value={newRole} onChange={(e) => setNewRole(e.target.value)} style={inp}>
-                {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                {Object.entries(storeRoles).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
               </select>
             </div>
             <div style={{ minWidth: 70 }}>

@@ -3,12 +3,13 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { MONTHS, UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
+import { MONTHS, UNIT_TYPES as DEFAULT_UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
 import { StatCard, styles, FM, FH } from '../components/SharedUI';
 
 const { card, cardHead: cH, input: inp, btn1: b1, th: TH, td: TD } = styles;
 
-export default function HistoryTab({ historyYear, historyData, historyLoading, loadHistory, currentYear, saveHistoryMonth }) {
+export default function HistoryTab({ historyYear, historyData, historyLoading, loadHistory, currentYear, saveHistoryMonth, unitTypes: propUnitTypes }) {
+  const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   const compYears = [2022, 2023, 2024, 2025, 2026].filter((y) => y <= currentYear);
   const [editingMonth, setEditingMonth] = useState(null);
   const [editUnits, setEditUnits] = useState({});

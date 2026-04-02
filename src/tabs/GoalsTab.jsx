@@ -1,5 +1,5 @@
 import React from 'react';
-import { UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
+import { UNIT_TYPES as DEFAULT_UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
 import { Modal, styles, FM, FH } from '../components/SharedUI';
 import { GoalForm, PgaForm, BeForm, RepForm, HitForm, ContestForm } from '../components/Forms';
 
@@ -8,7 +8,9 @@ const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = s
 export default function GoalsTab({
   goals, tot, tTgt, pgaTiers, beSpiffs, hitList, contests, spList, act,
   modal, setModal, saveGoals, saveReps, savePga, saveBe, saveHL, saveCT,
+  unitTypes: propUnitTypes,
 }) {
+  const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>

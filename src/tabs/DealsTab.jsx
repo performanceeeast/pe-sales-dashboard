@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MONTHS, UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
+import { MONTHS, UNIT_TYPES as DEFAULT_UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
 import { canEditDeal } from '../lib/auth';
 import { Modal, styles, FM, FH } from '../components/SharedUI';
 import { DealForm } from '../components/Forms';
@@ -9,7 +9,9 @@ const { card, cardHead: cH, input: inp, btn1: b1, th: TH, td: TD } = styles;
 export default function DealsTab({
   month, year, deals, spList, act, tot, pgaTiers,
   modal, setModal, addDeal, delDeal, updateDeal, currentUser,
+  unitTypes: propUnitTypes, backEndProducts,
 }) {
+  const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   const [editingDeal, setEditingDeal] = useState(null);
 
   function handleEdit(deal) {
@@ -65,12 +67,12 @@ export default function DealsTab({
       <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>Click any deal row to edit (own deals only for salespeople)</div>
 
       <Modal open={modal === 'addDeal'} onClose={() => setModal(null)} title="Log a New Deal" wide>
-        <DealForm spList={act} onSave={addDeal} onCancel={() => setModal(null)} pgaTiers={pgaTiers} />
+        <DealForm spList={act} onSave={addDeal} onCancel={() => setModal(null)} pgaTiers={pgaTiers} unitTypes={UNIT_TYPES} backEndProducts={backEndProducts} />
       </Modal>
 
       <Modal open={modal === 'editDeal' && editingDeal} onClose={() => { setEditingDeal(null); setModal(null); }} title="Edit Deal" wide>
         {editingDeal && (
-          <DealForm spList={act} onSave={handleSaveEdit} onCancel={() => { setEditingDeal(null); setModal(null); }} pgaTiers={pgaTiers} editDeal={editingDeal} />
+          <DealForm spList={act} onSave={handleSaveEdit} onCancel={() => { setEditingDeal(null); setModal(null); }} pgaTiers={pgaTiers} editDeal={editingDeal} unitTypes={UNIT_TYPES} backEndProducts={backEndProducts} />
         )}
       </Modal>
     </div>

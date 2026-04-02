@@ -1,12 +1,13 @@
 import React from 'react';
-import { UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
+import { UNIT_TYPES as DEFAULT_UNIT_TYPES, UNIT_COLORS } from '../lib/constants';
 import { MONTHS } from '../lib/constants';
 import { getSpUnits, getRepSpiffs } from '../lib/calculations';
 import { styles, FM, FH } from '../components/SharedUI';
 
 const { card, td: TD } = styles;
 
-export default function LeaderboardTab({ month, year, deals, act, pgaTiers, beSpiffs, hitList, setSelRep }) {
+export default function LeaderboardTab({ month, year, deals, act, pgaTiers, beSpiffs, hitList, setSelRep, unitTypes: propUnitTypes }) {
+  const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   return (
     <div>
       <div style={{ fontFamily: FH, fontSize: 14, fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: 14 }}>
@@ -22,9 +23,9 @@ export default function LeaderboardTab({ month, year, deals, act, pgaTiers, beSp
           No deals logged for {MONTHS[month]} yet. Log deals on the Deals tab to see the leaderboard populate.
         </div>
       )}
-      {act.slice().sort((a, b) => getSpUnits(deals, b.id).total - getSpUnits(deals, a.id).total).map((s, r) => {
-        const u = getSpUnits(deals, s.id);
-        const sf = getRepSpiffs(deals, s.id, pgaTiers, beSpiffs, hitList);
+      {act.slice().sort((a, b) => getSpUnits(deals, b.id, UNIT_TYPES).total - getSpUnits(deals, a.id, UNIT_TYPES).total).map((s, r) => {
+        const u = getSpUnits(deals, s.id, UNIT_TYPES);
+        const sf = getRepSpiffs(deals, s.id, pgaTiers, beSpiffs, hitList, UNIT_TYPES);
         const repDeals = deals.filter((d) => d.salesperson === s.id);
         const totalPga = repDeals.reduce((sum, d) => sum + (d.pgaAmount || 0), 0);
         const medal = r === 0 ? '🥇' : r === 1 ? '🥈' : r === 2 ? '🥉' : '';
