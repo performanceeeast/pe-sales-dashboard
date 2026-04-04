@@ -48,7 +48,12 @@ export default function LoginScreen({ onLogin, storeId, storeTheme, onChangeStor
         </div>
 
         {usersLoading ? (
-          <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>CONNECTING...</div>
+          <div style={{ textAlign: 'center', padding: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
+              <span style={{ display: 'inline-block', width: 18, height: 18, border: '2px solid var(--border-primary)', borderTopColor: 'var(--brand-red)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            </div>
+            <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)' }}>CONNECTING...</div>
+          </div>
         ) : (
           <>
             <div style={{ marginBottom: 16 }}>
@@ -89,7 +94,12 @@ export default function LoginScreen({ onLogin, storeId, storeTheme, onChangeStor
               disabled={loggingIn}
               style={{ ...b1, width: '100%', padding: '12px', fontSize: 13, letterSpacing: 1, opacity: loggingIn ? 0.6 : 1 }}
             >
-              {loggingIn ? 'SIGNING IN...' : 'SIGN IN'}
+              {loggingIn ? (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <span style={{ display: 'inline-block', width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  SIGNING IN...
+                </span>
+              ) : 'SIGN IN'}
             </button>
           </>
         )}
