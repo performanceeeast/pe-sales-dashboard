@@ -169,10 +169,14 @@ export default function App() {
     })();
   }, [storeId, year, month]);
 
-  // ── Save (debounced — state updates immediately, Supabase write delayed 1s) ──
-  const saveTimerRef = useRef(null);
-  const pendingDataRef = useRef(null);
+  // ── Save (immediate — every mutation saves right away, no data loss) ──
   const dataRef = useRef(null); // Always holds the latest full data snapshot
+  const saveStoreRef = useRef(storeId);
+  const saveYearRef = useRef(year);
+  const saveMonthRef = useRef(month);
+  saveStoreRef.current = storeId;
+  saveYearRef.current = year;
+  saveMonthRef.current = month;
 
   // Keep dataRef in sync with all state on every render
   const currentData = {
@@ -187,34 +191,17 @@ export default function App() {
     return { ...dataRef.current, ...overrides };
   }
 
-  // Stable updateAndSave — safe to pass to children without useCallback
+  // Immediate save — writes to localStorage synchronously, then Supabase async
   const updateAndSave = useCallback((setter, key, newVal) => {
     setter(newVal);
-    // Build data from ref (latest state) with the override applied
     const data = { ...dataRef.current, [key]: newVal };
-    pendingDataRef.current = data;
-
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      if (pendingDataRef.current) {
-        saveMonth(storeId, year, month, pendingDataRef.current);
-        pendingDataRef.current = null;
-      }
-    }, 1000);
-  }, [storeId, year, month]);
-
-  // Flush pending save on unmount or month/store change
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        if (pendingDataRef.current) {
-          saveMonth(storeId, year, month, pendingDataRef.current);
-          pendingDataRef.current = null;
-        }
-      }
-    };
-  }, [storeId, year, month]);
+    // Sync localStorage write as safety net (never lost even if browser closes)
+    const sid = saveStoreRef.current, yr = saveYearRef.current, mo = saveMonthRef.current;
+    const cacheKey = sid ? `peg-sales-${sid}-${yr}-${mo}` : `peg-sales-${yr}-${mo}`;
+    try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch (e) { console.error('localStorage save error:', e); }
+    // Async Supabase write
+    saveMonth(sid, yr, mo, data).catch((e) => console.error('Supabase save error:', e));
+  }, []);
 
   // ── Mutators ──
   function addDeal(d) { const nd = [...deals, { ...d, id: Date.now().toString() }]; updateAndSave(setDeals, 'deals', nd); setModal(null); }

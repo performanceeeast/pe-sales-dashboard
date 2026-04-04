@@ -30,6 +30,11 @@ export async function loadMonth(storeId, year, month) {
 }
 
 export async function saveMonth(storeId, year, month, data) {
+  // Always write localStorage FIRST (synchronous, never lost)
+  const cacheKey = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
+  try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch (e) { console.error('localStorage write failed:', e); }
+
+  // Then write to Supabase (async)
   const row = monthDataToRow(year, month, data);
   if (storeId) row.store_id = storeId;
   try {
@@ -37,12 +42,8 @@ export async function saveMonth(storeId, year, month, data) {
       .from('monthly_data')
       .upsert(row, { onConflict: storeId ? 'store_id,year,month' : 'year,month' });
     if (error) throw error;
-    const cacheKey = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
-    localStorage.setItem(cacheKey, JSON.stringify(data));
   } catch (e) {
-    console.error('saveMonth error, saving to localStorage:', e);
-    const cacheKey = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
-    localStorage.setItem(cacheKey, JSON.stringify(data));
+    console.error('saveMonth Supabase error (data safe in localStorage):', e);
   }
 }
 
