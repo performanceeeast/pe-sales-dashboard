@@ -256,16 +256,16 @@ export default function App() {
 
   // ── Derived ──
   // Active salespeople — prefer real crm_users accounts, fall back to monthly sp list
-  const act = crmUsers.length > 0
+  const act = useMemo(() => crmUsers.length > 0
     ? crmUsers.filter((u) => u.active !== false && (u.role === 'salesperson' || u.role === 'ism' || u.role === 'gsm' || u.role === 'admin' || u.role === 'sales_finance_mgr'))
-    : spList.filter((s) => s.active);
+    : spList.filter((s) => s.active), [crmUsers, spList]);
   const tot = useMemo(() => {
     const t = { ...Object.fromEntries(unitTypes.map((u) => [u, 0])), total: 0 };
     deals.forEach((d) => unitTypes.forEach((u) => { t[u] += d.units?.[u] || 0; }));
     t.total = unitTypes.reduce((s, u) => s + t[u], 0); return t;
   }, [deals, unitTypes]);
-  const tTgt = unitTypes.reduce((s, u) => s + (goals[u]?.target || 0), 0);
-  const tStr = unitTypes.reduce((s, u) => s + (goals[u]?.stretch || 0), 0);
+  const tTgt = useMemo(() => unitTypes.reduce((s, u) => s + (goals[u]?.target || 0), 0), [unitTypes, goals]);
+  const tStr = useMemo(() => unitTypes.reduce((s, u) => s + (goals[u]?.stretch || 0), 0), [unitTypes, goals]);
   const ls = useMemo(() => ({ total: leads.length, set: leads.filter((l) => l.apptDate).length, kept: leads.filter((l) => l.showed).length, sold: leads.filter((l) => l.sold).length }), [leads]);
   const floorTrafficStats = useMemo(() => {
     const traffic = floorDailyLeadCounts.reduce((s, d) => s + (d.count || 0), 0) + floorBulkLeadCounts.reduce((s, d) => s + (d.count || 0), 0);
