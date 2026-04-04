@@ -25,7 +25,9 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
   const [wTerm, setWTerm] = useState('');
 
   const wPlans = wBrand ? getPlansForBrand(wBrand) : [];
-  const wHpGroups = wBrand ? getHPGroupsForBrand(wBrand) : [];
+  const allHpGroups = wBrand ? getHPGroupsForBrand(wBrand) : [];
+  // Only show HP groups that have rates for the selected plan + condition
+  const wHpGroups = wPlan ? allHpGroups.filter((g) => getAvailableTerms(wPlan, wCondition, g.id).length > 0) : allHpGroups;
   const wTerms = wPlan && wHpGroup ? getAvailableTerms(wPlan, wCondition, wHpGroup) : [];
   const wSelectedRate = wPlan && wHpGroup && wTerm ? lookupWarrantyRate(wPlan, wCondition, wHpGroup, parseInt(wTerm)) : null;
 
@@ -256,12 +258,25 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
               Cost: ${wSelectedRate.dealerCost} | Gross: ${wSelectedRate.retailPrice - wSelectedRate.dealerCost}
             </div>
           )}
-          {/* Show any already-added warranty products */}
+          {/* Show any already-added warranty products with editable retail + cost/gross */}
           {f.selectedProducts.filter((p) => p._isWarranty).length > 0 && (
             <div style={{ marginTop: 10, borderTop: '1px solid var(--border-secondary)', paddingTop: 8 }}>
               {f.selectedProducts.filter((p) => p._isWarranty).map((p) => (
-                <div key={p.productId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
-                  <span style={{ fontFamily: FM, fontSize: 11, color: '#2563eb', fontWeight: 600 }}>{'\u2713'} {p.name} — ${p.retailPrice}</span>
+                <div key={p.productId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--border-secondary)', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: FM, fontSize: 11, color: '#2563eb', fontWeight: 600, flex: 1, minWidth: 150 }}>{'\u2713'} {p.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <label style={{ fontFamily: FM, fontSize: 8, color: 'var(--text-muted)' }}>RETAIL $</label>
+                    <input type="number" value={p.retailPrice || ''} onChange={(e) => {
+                      const newPrice = parseInt(e.target.value) || 0;
+                      sF((prev) => ({ ...prev, selectedProducts: prev.selectedProducts.map((x) => x.productId === p.productId ? { ...x, retailPrice: newPrice } : x) }));
+                    }} style={{ ...inp, width: 80, textAlign: 'center', padding: '3px 6px', fontSize: 12, fontWeight: 700 }} />
+                  </div>
+                  {showCost && (
+                    <div style={{ display: 'flex', gap: 8, fontFamily: FM, fontSize: 10 }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Cost: ${p.cost || 0}</span>
+                      <span style={{ color: '#16a34a', fontWeight: 700 }}>Gross: ${(p.retailPrice || 0) - (p.cost || 0)}</span>
+                    </div>
+                  )}
                   <button onClick={() => sF((prev) => ({ ...prev, selectedProducts: prev.selectedProducts.filter((x) => x.productId !== p.productId) }))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>{'\u2715'}</button>
                 </div>
               ))}
@@ -298,9 +313,19 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
                     <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>{p.description}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontFamily: FH, fontSize: 14, fontWeight: 700, color: isSelected ? 'var(--brand-red)' : 'var(--text-muted)' }}>${p.retailPrice.toLocaleString()}</div>
+                    {isSelected ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>$</span>
+                        <input type="number" value={selected.retailPrice || ''} onChange={(e) => {
+                          const newPrice = parseInt(e.target.value) || 0;
+                          sF((prev) => ({ ...prev, selectedProducts: prev.selectedProducts.map((x) => x.productId === p.id ? { ...x, retailPrice: newPrice } : x) }));
+                        }} style={{ ...inp, width: 75, textAlign: 'center', padding: '2px 4px', fontSize: 13, fontWeight: 700, border: '1px solid var(--brand-red)' }} />
+                      </div>
+                    ) : (
+                      <div style={{ fontFamily: FH, fontSize: 14, fontWeight: 700, color: 'var(--text-muted)' }}>${p.retailPrice.toLocaleString()}</div>
+                    )}
                     {showCost && (
-                      <div style={{ fontFamily: FM, fontSize: 9, color: '#16a34a' }}>gross: ${(p.retailPrice - p.cost).toLocaleString()}</div>
+                      <div style={{ fontFamily: FM, fontSize: 9, color: '#16a34a' }}>cost: ${p.cost} | gross: ${((isSelected ? selected.retailPrice : p.retailPrice) - p.cost).toLocaleString()}</div>
                     )}
                   </div>
                 </div>
