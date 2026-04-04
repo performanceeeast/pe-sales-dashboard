@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MONTHS, UNIT_TYPES, UNIT_COLORS, DEFAULT_SALESPEOPLE, DEFAULT_GOALS, DEFAULT_PGA_TIERS, DEFAULT_BE_SPIFFS } from './lib/constants';
 import { loadMonth, saveMonth, loadYear, loadUsers } from './lib/storage';
 import { getSpUnits, getRepSpiffs } from './lib/calculations';
@@ -165,7 +165,10 @@ export default function App() {
     })();
   }, [storeId, year, month]);
 
-  // ── Save ──
+  // ── Save (debounced — state updates immediately, Supabase write delayed 1s) ──
+  const saveTimerRef = useRef(null);
+  const pendingDataRef = useRef(null);
+
   function getAllData(overrides = {}) {
     return {
       deals, leads, floorLeads, goals, sp: spList, pga: pgaTiers, be: beSpiffs,
@@ -179,8 +182,30 @@ export default function App() {
   function updateAndSave(setter, key, newVal) {
     setter(newVal);
     const data = getAllData({ [key]: newVal });
-    saveMonth(storeId, year, month, data);
+    pendingDataRef.current = data;
+
+    // Clear any pending save timer and set a new one
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      if (pendingDataRef.current) {
+        saveMonth(storeId, year, month, pendingDataRef.current);
+        pendingDataRef.current = null;
+      }
+    }, 1000); // 1 second debounce
   }
+
+  // Flush pending save on unmount or month/store change
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        if (pendingDataRef.current) {
+          saveMonth(storeId, year, month, pendingDataRef.current);
+          pendingDataRef.current = null;
+        }
+      }
+    };
+  }, [storeId, year, month]);
 
   // ── Mutators ──
   function addDeal(d) { const nd = [...deals, { ...d, id: Date.now().toString() }]; updateAndSave(setDeals, 'deals', nd); setModal(null); }
