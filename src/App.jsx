@@ -168,31 +168,36 @@ export default function App() {
   // ── Save (debounced — state updates immediately, Supabase write delayed 1s) ──
   const saveTimerRef = useRef(null);
   const pendingDataRef = useRef(null);
+  const dataRef = useRef(null); // Always holds the latest full data snapshot
+
+  // Keep dataRef in sync with all state on every render
+  const currentData = {
+    deals, leads, floorLeads, goals, sp: spList, pga: pgaTiers, be: beSpiffs,
+    hitList, contests, dailyLeadCounts, bulkLeadCounts,
+    floorDailyLeadCounts, floorBulkLeadCounts, notes, meetingNotes, googleReviews,
+    gsmChecklist, fiKpis, fiChecklist, fiDeals, fiTargets, gsmBonusConfig, promos, priceList, fiMenus, fiMenuConfig, promoRecords, pricingRecords, inventoryItems,
+  };
+  dataRef.current = currentData;
 
   function getAllData(overrides = {}) {
-    return {
-      deals, leads, floorLeads, goals, sp: spList, pga: pgaTiers, be: beSpiffs,
-      hitList, contests, dailyLeadCounts, bulkLeadCounts,
-      floorDailyLeadCounts, floorBulkLeadCounts, notes, meetingNotes, googleReviews,
-      gsmChecklist, fiKpis, fiChecklist, fiDeals, fiTargets, gsmBonusConfig, promos, priceList, fiMenus, fiMenuConfig, promoRecords, pricingRecords, inventoryItems,
-      ...overrides,
-    };
+    return { ...dataRef.current, ...overrides };
   }
 
-  function updateAndSave(setter, key, newVal) {
+  // Stable updateAndSave — safe to pass to children without useCallback
+  const updateAndSave = useCallback((setter, key, newVal) => {
     setter(newVal);
-    const data = getAllData({ [key]: newVal });
+    // Build data from ref (latest state) with the override applied
+    const data = { ...dataRef.current, [key]: newVal };
     pendingDataRef.current = data;
 
-    // Clear any pending save timer and set a new one
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
       if (pendingDataRef.current) {
         saveMonth(storeId, year, month, pendingDataRef.current);
         pendingDataRef.current = null;
       }
-    }, 1000); // 1 second debounce
-  }
+    }, 1000);
+  }, [storeId, year, month]);
 
   // Flush pending save on unmount or month/store change
   useEffect(() => {
