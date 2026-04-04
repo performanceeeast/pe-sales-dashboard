@@ -201,15 +201,20 @@ export default function DashboardTab({
       })()}
 
       {/* ── MONTHLY / YEARLY TAB TOGGLE ── */}
-      <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 16 }}>
-        {[{ id: 'monthly', label: MONTHS[month].toUpperCase() + ' ' + year }, { id: 'yearly', label: year + ' YEAR-TO-DATE' }].map((v) => (
+      <div style={{ display: 'flex', gap: 0, marginBottom: 20, borderRadius: 8, overflow: 'hidden', border: '2px solid var(--brand-red)', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+        {[{ id: 'monthly', label: MONTHS[month].toUpperCase(), sub: 'MONTHLY VIEW' }, { id: 'yearly', label: year.toString(), sub: 'YEAR-TO-DATE' }].map((v) => (
           <button key={v.id} onClick={() => setDashSub(v.id)} style={{
-            padding: '8px 16px', borderRadius: 4, border: 'none', cursor: 'pointer',
-            fontFamily: FH, fontSize: 10, fontWeight: 600, letterSpacing: 0.8,
-            background: dashSub === v.id ? 'var(--brand-red)' : 'transparent',
-            color: dashSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
+            padding: '12px 20px', border: 'none', cursor: 'pointer',
+            fontFamily: FH, fontSize: 14, fontWeight: 700, letterSpacing: 1.5,
+            background: dashSub === v.id ? 'var(--brand-red)' : 'var(--card-bg)',
+            color: dashSub === v.id ? '#fff' : 'var(--text-muted)',
             transition: 'all .15s', flex: 1, textAlign: 'center',
-          }}>{v.label}</button>
+            borderRight: v.id === 'monthly' ? '1px solid var(--brand-red)' : 'none',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+          }}>
+            <span>{v.label}</span>
+            <span style={{ fontSize: 8, fontFamily: FM, fontWeight: 600, letterSpacing: 2, opacity: dashSub === v.id ? 0.85 : 0.5 }}>{v.sub}</span>
+          </button>
         ))}
       </div>
 
