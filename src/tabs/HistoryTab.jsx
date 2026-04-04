@@ -8,8 +8,9 @@ import { StatCard, styles, FM, FH } from '../components/SharedUI';
 
 const { card, cardHead: cH, input: inp, btn1: b1, th: TH, td: TD } = styles;
 
-export default function HistoryTab({ historyYear, historyData, historyLoading, loadHistory, currentYear, saveHistoryMonth, unitTypes: propUnitTypes }) {
+export default function HistoryTab({ historyYear, historyData, historyLoading, loadHistory, currentYear, saveHistoryMonth, unitTypes: propUnitTypes, currentUser }) {
   const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
+  const canEdit = currentUser?.role === 'admin' || currentUser?.role === 'gsm' || currentUser?.role === 'sales_finance_mgr';
   const compYears = [2022, 2023, 2024, 2025, 2026].filter((y) => y <= currentYear);
   const [editingMonth, setEditingMonth] = useState(null);
   const [editUnits, setEditUnits] = useState({});
@@ -86,18 +87,18 @@ export default function HistoryTab({ historyYear, historyData, historyLoading, l
           <div style={{ ...card, marginBottom: 16 }}>
             <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>MONTHLY BREAKDOWN — {historyYear}</span>
-              <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Click any month to add/edit historical data</span>
+              {canEdit && <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Click any month to add/edit historical data</span>}
             </div>
             <div style={{ overflow: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>{['Month', ...UNIT_TYPES, 'TOTAL', ''].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
                 <tbody>
                   {hMonthData.map((m) => (
-                    <tr key={m.month} style={{ cursor: 'pointer' }} onClick={() => startEdit(m.monthIdx)} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--row-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                    <tr key={m.month} style={{ cursor: canEdit ? 'pointer' : 'default' }} onClick={() => canEdit && startEdit(m.monthIdx)} onMouseEnter={(e) => { if (canEdit) e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                       <td style={{ ...TD, fontFamily: FH, fontWeight: 500 }}>{m.monthFull}</td>
                       {UNIT_TYPES.map((u) => <td key={u} style={{ ...TD, fontFamily: FM, textAlign: 'center', color: m[u] > 0 ? UNIT_COLORS[u] : 'var(--border-primary)', fontWeight: 700 }}>{m[u]}</td>)}
                       <td style={{ ...TD, fontFamily: FH, fontWeight: 700, fontSize: 14, color: 'var(--brand-red)', textAlign: 'center' }}>{m.total}</td>
-                      <td style={{ ...TD, fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>edit</td>
+                      <td style={{ ...TD, fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>{canEdit ? 'edit' : ''}</td>
                     </tr>
                   ))}
                   <tr style={{ background: 'var(--bg-tertiary)', borderTop: '2px solid var(--brand-red)' }}>

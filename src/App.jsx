@@ -338,6 +338,7 @@ export default function App() {
     ['leads', 'LEADS', 'LEADS', 'leads'],
     ['manager', 'MANAGER', 'MGR', 'mgmt'],
     ['financeDash', 'F&I', 'F&I', 'mgmt'],
+    ['history', 'HISTORICAL DATA', 'HISTORY', 'main'],
   ];
   const tabs = allTabs.filter(([k]) => canSeeTab(currentUser, k, storeConfig));
 
@@ -359,7 +360,7 @@ export default function App() {
       {!showAdmin && view === 'sales' && (
         <div>
           <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
-            {[{ id: 'deals', label: 'DEALS' }, { id: 'programs', label: 'PROGRAMS' }, { id: 'history', label: 'HISTORY' }].map((v) => (
+            {[{ id: 'deals', label: 'DEALS' }, { id: 'programs', label: 'PROGRAMS' }].map((v) => (
               <button key={v.id} onClick={() => setSalesSub(v.id)} style={{
                 padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
                 fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
@@ -369,9 +370,9 @@ export default function App() {
               }}>{v.label}</button>
             ))}
           </div>
-          {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} />}
+          {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} beSpiffs={beSpiffs} />}
           {salesSub === 'programs' && <PromosTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} promoRecords={promoRecords} savePromoRecords={savePromoRecords} pricingRecords={pricingRecords} savePricingRecords={savePricingRecords} />}
-          {salesSub === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} />}
+          {/* History moved to own top-level tab */}
         </div>
       )}
 
@@ -418,6 +419,9 @@ export default function App() {
 
       {/* F&I — Preserved exactly (already has internal sub-views) */}
       {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} act={act} storeConfig={storeConfig} storeTheme={storeTheme} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />}
+
+      {/* HISTORICAL DATA — own top-level tab, viewable by all, editable by admin/gsm only */}
+      {!showAdmin && view === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} currentUser={currentUser} />}
     </>
   );
 

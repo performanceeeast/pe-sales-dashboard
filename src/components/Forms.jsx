@@ -5,9 +5,10 @@ import { styles, FM, FH } from './SharedUI';
 const { input: inp, btn1: b1, btn2: b2, label: lbl } = styles;
 
 /* ═══ Deal Form (single page) ═══ */
-export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTypes: propUnitTypes, backEndProducts: propBEProducts }) {
+export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTypes: propUnitTypes, backEndProducts: propBEProducts, beSpiffs }) {
   const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   const BACK_END_PRODUCTS = propBEProducts || DEFAULT_BE_PRODUCTS;
+  const spiffMap = Object.fromEntries((beSpiffs || []).map(s => [s.product, s.amount]));
   const [f, sF] = useState(editDeal ? { ...editDeal } : {
     date: new Date().toISOString().split('T')[0],
     customer: '', salesperson: '', dealNumber: '',
@@ -75,8 +76,12 @@ export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTyp
       <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: 14 }}>
         <label style={{ ...lbl, color: '#16a34a' }}>BACK END PRODUCTS (F&I DOCUMENTED)</label>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+          {BACK_END_PRODUCTS.length === 0 && (
+            <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', padding: '6px 0' }}>No back-end spiffs configured. Add products in Manager &gt; Goals &amp; Spiffs.</div>
+          )}
           {BACK_END_PRODUCTS.map((p) => {
             const sel = (f.backEndProducts || []).includes(p);
+            const spiffAmt = spiffMap[p];
             return (
               <button key={p} onClick={() => toggleBE(p)} type="button" style={{
                 padding: '6px 12px', borderRadius: 4,
@@ -84,12 +89,12 @@ export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTyp
                 background: sel ? '#dcfce7' : 'var(--card-bg)',
                 fontFamily: FM, fontSize: 10, fontWeight: sel ? 700 : 500,
                 color: sel ? '#16a34a' : 'var(--text-secondary)', cursor: 'pointer',
-              }}>{sel ? '✓ ' : ''}{p}</button>
+              }}>{sel ? '✓ ' : ''}{p}{spiffAmt ? ` ($${spiffAmt})` : ''}</button>
             );
           })}
         </div>
-        {f.backEndProducts?.length === BACK_END_PRODUCTS.length && (
-          <div style={{ fontFamily: FM, fontSize: 10, color: '#16a34a', marginTop: 6, fontWeight: 700 }}>ALL PRODUCTS — BONUS APPLIES!</div>
+        {BACK_END_PRODUCTS.length > 0 && f.backEndProducts?.length === BACK_END_PRODUCTS.length && (
+          <div style={{ fontFamily: FM, fontSize: 10, color: '#16a34a', marginTop: 6, fontWeight: 700 }}>ALL PRODUCTS — BONUS APPLIES! {spiffMap['ALL OF THE ABOVE'] ? `($${spiffMap['ALL OF THE ABOVE']} bonus)` : ''}</div>
         )}
       </div>
 
