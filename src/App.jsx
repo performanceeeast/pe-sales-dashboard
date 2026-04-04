@@ -59,7 +59,7 @@ export default function App() {
   const [googleReviews, setGoogleReviews] = useState({});
   const [gsmChecklist, setGsmChecklist] = useState({});
   const [fiKpis, setFiKpis] = useState({});
-  const [fiChecklist, setFiChecklist] = useState({});
+  const [fiChecklist] = useState({}); // Loaded for data integrity but not actively used
   const [fiDeals, setFiDeals] = useState([]);
   const [fiTargets, setFiTargets] = useState({});
   const [fiMenus, setFiMenus] = useState([]);
@@ -74,7 +74,7 @@ export default function App() {
   const [modal, setModal] = useState(null);
   const [selRep, setSelRep] = useState(null);
   const [yearlyLeads, setYearlyLeads] = useState([]);
-  const [yearlyFloorLeads, setYearlyFloorLeads] = useState([]);
+  // yearlyFloorLeads removed — was set but never referenced by any component
   const [yearlyDeals, setYearlyDeals] = useState([]);
   const [yearlyMonthData, setYearlyMonthData] = useState([]);
   const [historyYear, setHistoryYear] = useState(now.getFullYear() - 1);
@@ -160,7 +160,7 @@ export default function App() {
           (m.floorLeads || []).forEach((f) => aFL.push({ ...f, _month: i }));
         }
       });
-      setYearlyLeads(aL); setYearlyDeals(aD); setYearlyFloorLeads(aFL); setYearlyMonthData(yd);
+      setYearlyLeads(aL); setYearlyDeals(aD); setYearlyMonthData(yd);
       setLoading(false);
     })();
   }, [storeId, year, month]);
@@ -234,7 +234,7 @@ export default function App() {
   function saveGoogleReviews(g) { updateAndSave(setGoogleReviews, 'googleReviews', g); }
   function saveGsmChecklist(g) { updateAndSave(setGsmChecklist, 'gsmChecklist', g); }
   function saveFiKpis(f) { updateAndSave(setFiKpis, 'fiKpis', f); }
-  function saveFiChecklist(f) { updateAndSave(setFiChecklist, 'fiChecklist', f); }
+  // saveFiChecklist removed — fiChecklist not actively used by any component
   function saveFiDeals(f) { updateAndSave(setFiDeals, 'fiDeals', f); }
   function saveFiTargets(f) { updateAndSave(setFiTargets, 'fiTargets', f); }
   function saveGsmBonusConfig(g) { updateAndSave(setGsmBonusConfig, 'gsmBonusConfig', g); }
