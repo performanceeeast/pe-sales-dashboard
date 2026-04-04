@@ -9,12 +9,17 @@ import { LeadForm } from '../components/Forms';
 
 const { card, cardHead: cH, input: inp, btn1: b1, th: TH, td: TD } = styles;
 
+const numInp = { ...inp, width: 55, textAlign: 'center', padding: '4px 2px', fontSize: 12, fontWeight: 700 };
+
 export default function ISMLeadsTab({
   month, year, leads, spList, act, ls,
   dailyLeadCounts, bulkLeadCounts, yearlyLeads, yearlyMonthData,
   saveDLC, saveBLC, addLead, delLead, updLead, modal, setModal,
+  saveHistoryMonth, reloadYear,
 }) {
   const [editingLead, setEditingLead] = useState(null);
+  const [editingFunnel, setEditingFunnel] = useState(null); // { monthIdx, leads, set, kept, sold }
+  const [editingRepHistory, setEditingRepHistory] = useState(null); // { monthIdx, reps: {repId: {leads,set,kept,sold}} }
 
   const repLeadStats = act.map((sp) => {
     const rl = leads.filter((l) => l.salesperson === sp.id);
@@ -24,28 +29,57 @@ export default function ISMLeadsTab({
     return { ...sp, set, kept, sold, closeRate: kept > 0 ? Math.round(sold / kept * 100) : 0, total: rl.length };
   }).sort((a, b) => b.sold - a.sold);
 
+  // Build monthly summary with history overrides
   const monthlySummary = MONTHS.map((mName, mIdx) => {
-    const mLeads = yearlyLeads.filter((l) => l._month === mIdx);
-    return { month: mName.substring(0, 3).toUpperCase(), monthIdx: mIdx, leads: mLeads.length, set: mLeads.filter((l) => l.apptDate).length, kept: mLeads.filter((l) => l.showed).length, sold: mLeads.filter((l) => l.sold).length };
-  }).filter((m) => m.leads > 0 || m.monthIdx <= month);
+    const mLeads = (yearlyLeads || []).filter((l) => l._month === mIdx);
+    const mData = yearlyMonthData?.[mIdx];
+    const hist = mData?.ismHistoryCounts || {};
+    const realLeads = mLeads.length;
+    const realSet = mLeads.filter((l) => l.apptDate).length;
+    const realKept = mLeads.filter((l) => l.showed).length;
+    const realSold = mLeads.filter((l) => l.sold).length;
+    return {
+      month: mName.substring(0, 3).toUpperCase(), monthFull: mName, monthIdx: mIdx,
+      leads: realLeads + (hist.leads || 0),
+      set: realSet + (hist.set || 0),
+      kept: realKept + (hist.kept || 0),
+      sold: realSold + (hist.sold || 0),
+      hasHistory: !!(hist.leads || hist.set || hist.kept || hist.sold),
+    };
+  });
 
+  // Build yearly rep stats with history overrides
   const yearlyRepStats = act.map((sp) => {
-    const rl = yearlyLeads.filter((l) => l.salesperson === sp.id);
-    const kept = rl.filter((l) => l.showed).length;
-    const sold = rl.filter((l) => l.sold).length;
-    return { ...sp, set: rl.filter((l) => l.apptDate).length, kept, sold, closeRate: kept > 0 ? Math.round(sold / kept * 100) : 0, total: rl.length };
+    let totalLeads = 0, totalSet = 0, totalKept = 0, totalSold = 0;
+    MONTHS.forEach((_, mIdx) => {
+      const mLeads = (yearlyLeads || []).filter((l) => l._month === mIdx && l.salesperson === sp.id);
+      totalLeads += mLeads.length;
+      totalSet += mLeads.filter((l) => l.apptDate).length;
+      totalKept += mLeads.filter((l) => l.showed).length;
+      totalSold += mLeads.filter((l) => l.sold).length;
+      // Add history overrides
+      const mData = yearlyMonthData?.[mIdx];
+      const repHist = (mData?.ismRepHistory || []).find((r) => r.repId === sp.id);
+      if (repHist) {
+        totalLeads += repHist.leads || 0;
+        totalSet += repHist.set || 0;
+        totalKept += repHist.kept || 0;
+        totalSold += repHist.sold || 0;
+      }
+    });
+    return { ...sp, total: totalLeads, set: totalSet, kept: totalKept, sold: totalSold, closeRate: totalKept > 0 ? Math.round(totalSold / totalKept * 100) : 0 };
   }).sort((a, b) => b.sold - a.sold);
 
-  const yearTotals = { leads: yearlyLeads.length, set: yearlyLeads.filter((l) => l.apptDate).length, kept: yearlyLeads.filter((l) => l.showed).length, sold: yearlyLeads.filter((l) => l.sold).length };
+  const yearTotals = monthlySummary.reduce((acc, m) => ({ leads: acc.leads + m.leads, set: acc.set + m.set, kept: acc.kept + m.kept, sold: acc.sold + m.sold }), { leads: 0, set: 0, kept: 0, sold: 0 });
 
   const dailyTotal = dailyLeadCounts.reduce((s, d) => s + (d.count || 0), 0);
   const bulkTotal = bulkLeadCounts.reduce((s, d) => s + (d.count || 0), 0);
   const monthLeadTotal = dailyTotal + bulkTotal;
 
   const yearlyDailyTotals = MONTHS.map((mName, mIdx) => {
-    const mData = yearlyMonthData[mIdx];
-    const dlc = (mData && mData.dailyLeadCounts) ? mData.dailyLeadCounts.reduce((s, d) => s + (d.count || 0), 0) : 0;
-    const blc = (mData && mData.bulkLeadCounts) ? mData.bulkLeadCounts.reduce((s, d) => s + (d.count || 0), 0) : 0;
+    const mData = yearlyMonthData?.[mIdx];
+    const dlc = (mData?.dailyLeadCounts || []).reduce((s, d) => s + (d.count || 0), 0);
+    const blc = (mData?.bulkLeadCounts || []).reduce((s, d) => s + (d.count || 0), 0);
     return dlc + blc;
   });
   const ytdDigitalLeads = yearlyDailyTotals.reduce((s, v) => s + v, 0);
@@ -58,12 +92,8 @@ export default function ISMLeadsTab({
   }
 
   function handleSaveEdit(updated) {
-    // Preserve showed/sold state from the original lead
     const original = leads.find((l) => l.id === updated.id);
     const merged = { ...updated, showed: original?.showed || false, sold: original?.sold || false };
-    // Update all fields at once
-    const updatedLeads = leads.map((l) => l.id === merged.id ? merged : l);
-    // Use updLead pattern but for full replacement
     Object.keys(merged).forEach((k) => {
       if (k !== 'id' && merged[k] !== original?.[k]) {
         updLead(merged.id, k, merged[k]);
@@ -73,12 +103,50 @@ export default function ISMLeadsTab({
     setModal(null);
   }
 
+  // ── Funnel editing ──
+  function startFunnelEdit(mIdx) {
+    if (mIdx === month) return; // Current month uses live data
+    const mData = yearlyMonthData?.[mIdx];
+    const hist = mData?.ismHistoryCounts || {};
+    setEditingFunnel({ monthIdx: mIdx, leads: hist.leads || 0, set: hist.set || 0, kept: hist.kept || 0, sold: hist.sold || 0 });
+  }
+
+  async function saveFunnelEdit() {
+    if (!editingFunnel || !saveHistoryMonth) return;
+    await saveHistoryMonth(year, editingFunnel.monthIdx, {
+      ismHistoryCounts: { leads: editingFunnel.leads, set: editingFunnel.set, kept: editingFunnel.kept, sold: editingFunnel.sold },
+    });
+    setEditingFunnel(null);
+    if (reloadYear) reloadYear();
+  }
+
+  // ── Rep history editing ──
+  function startRepEdit(mIdx) {
+    if (mIdx === month) return;
+    const mData = yearlyMonthData?.[mIdx];
+    const existing = mData?.ismRepHistory || [];
+    const reps = {};
+    act.forEach((sp) => {
+      const r = existing.find((x) => x.repId === sp.id) || {};
+      reps[sp.id] = { leads: r.leads || 0, set: r.set || 0, kept: r.kept || 0, sold: r.sold || 0 };
+    });
+    setEditingRepHistory({ monthIdx: mIdx, reps });
+  }
+
+  async function saveRepEdit() {
+    if (!editingRepHistory || !saveHistoryMonth) return;
+    const arr = Object.entries(editingRepHistory.reps).map(([repId, data]) => ({ repId, ...data }));
+    await saveHistoryMonth(year, editingRepHistory.monthIdx, { ismRepHistory: arr });
+    setEditingRepHistory(null);
+    if (reloadYear) reloadYear();
+  }
+
   return (
     <div>
       {/* Header with button */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 16px', fontFamily: FM, fontSize: 11, color: '#2563eb', display: 'flex', alignItems: 'center', gap: 8, flex: 1, marginRight: 10 }}>
-          ISM appointment tracking — log appointments, track show rates and conversions.
+          Internet Sales appointment tracking — log appointments, track show rates and conversions.
         </div>
         <button onClick={() => setModal('addLead')} style={{ ...b1, background: '#2563eb', whiteSpace: 'nowrap' }}>+ NEW APPOINTMENT</button>
       </div>
@@ -158,7 +226,6 @@ export default function ISMLeadsTab({
             <tbody>
               {leads.length === 0 && (
                 <tr><td colSpan={8} style={{ ...TD, padding: 50, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 12 }}>
-                  <div style={{ marginBottom: 8, fontSize: 28, opacity: 0.3 }}>📋</div>
                   No appointments logged for {MONTHS[month]}. Click <strong style={{ color: '#2563eb' }}>+ NEW APPOINTMENT</strong> to get started.
                 </td></tr>
               )}
@@ -196,10 +263,10 @@ export default function ISMLeadsTab({
 
       {/* Monthly Stats */}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-        <StatCard label="ISM LEADS" value={ls.total} sub="appointments set" />
+        <StatCard label="INTERNET LEADS" value={ls.total} sub="appointments set" />
         <StatCard label="APPTS KEPT" value={ls.kept} accent="#d97706" />
         <StatCard label="SOLD" value={ls.sold} accent="#16a34a" />
-        <StatCard label="ISM CLOSE RATE" value={(ls.kept > 0 ? Math.round(ls.sold / ls.kept * 100) : 0) + '%'} sub="kept → sold" accent="#2563eb" />
+        <StatCard label="CLOSE RATE" value={(ls.kept > 0 ? Math.round(ls.sold / ls.kept * 100) : 0) + '%'} sub="kept → sold" accent="#2563eb" />
       </div>
 
       {/* Per-Rep Cards */}
@@ -245,48 +312,125 @@ export default function ISMLeadsTab({
         </div>
       </div>
 
-      {/* Monthly ISM Funnel */}
+      {/* ═══ MONTHLY INTERNET SALES FUNNEL (Editable YTD) ═══ */}
       <div style={{ ...card, marginBottom: 16 }}>
-        <div style={cH}>MONTHLY ISM FUNNEL — {year}</div>
+        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>MONTHLY INTERNET SALES FUNNEL — {year}</span>
+          <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Click any past month to edit historical data</span>
+        </div>
         <div style={{ overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>{['Month', 'Digital Leads', 'Appts Set', 'Appts Kept', 'Sold', 'Set %', 'Close %'].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Month', 'Digital Leads', 'Appts Set', 'Appts Kept', 'Sold', 'Set %', 'Close %', ''].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
             <tbody>
               {monthlySummary.map((m) => {
                 const cr = m.kept > 0 ? Math.round(m.sold / m.kept * 100) : 0;
                 const dl = yearlyDailyTotals[m.monthIdx] || 0;
-                const setRate = dl > 0 ? Math.round(m.set / dl * 100) : 0;
+                const totalDl = dl + (m.leads - ((yearlyLeads || []).filter((l) => l._month === m.monthIdx).length));
+                const setRate = totalDl > 0 ? Math.round(m.set / totalDl * 100) : 0;
+                const isEditing = editingFunnel?.monthIdx === m.monthIdx;
+                const isCurrent = m.monthIdx === month;
+                const canEdit = m.monthIdx <= month && !isCurrent;
+
+                if (isEditing) {
+                  return (
+                    <tr key={m.month} style={{ background: '#fefce8' }}>
+                      <td style={{ ...TD, fontFamily: FH, fontWeight: 700, color: '#d97706' }}>{m.month}</td>
+                      <td style={{ ...TD, textAlign: 'center' }}><input type="number" min="0" value={editingFunnel.leads} onChange={(e) => setEditingFunnel({ ...editingFunnel, leads: parseInt(e.target.value) || 0 })} style={numInp} /></td>
+                      <td style={{ ...TD, textAlign: 'center' }}><input type="number" min="0" value={editingFunnel.set} onChange={(e) => setEditingFunnel({ ...editingFunnel, set: parseInt(e.target.value) || 0 })} style={numInp} /></td>
+                      <td style={{ ...TD, textAlign: 'center' }}><input type="number" min="0" value={editingFunnel.kept} onChange={(e) => setEditingFunnel({ ...editingFunnel, kept: parseInt(e.target.value) || 0 })} style={numInp} /></td>
+                      <td style={{ ...TD, textAlign: 'center' }}><input type="number" min="0" value={editingFunnel.sold} onChange={(e) => setEditingFunnel({ ...editingFunnel, sold: parseInt(e.target.value) || 0 })} style={numInp} /></td>
+                      <td style={TD}>—</td>
+                      <td style={TD}>—</td>
+                      <td style={{ ...TD, textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button onClick={saveFunnelEdit} style={{ ...b1, padding: '3px 10px', fontSize: 9 }}>SAVE</button>
+                          <button onClick={() => setEditingFunnel(null)} style={{ background: 'none', border: '1px solid var(--border-primary)', borderRadius: 3, padding: '3px 8px', fontSize: 9, cursor: 'pointer', fontFamily: FM, color: 'var(--text-muted)' }}>X</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
+
                 return (
-                  <tr key={m.month} style={{ background: m.monthIdx === month ? 'var(--brand-red-soft)' : 'transparent' }}>
-                    <td style={{ ...TD, fontFamily: FH, fontWeight: m.monthIdx === month ? 700 : 500, color: m.monthIdx === month ? '#2563eb' : 'var(--text-primary)' }}>{m.month}</td>
-                    <td style={{ ...TD, fontFamily: FM, fontWeight: 700, color: '#0284c7' }}>{dl || '—'}</td>
+                  <tr key={m.month} style={{ background: isCurrent ? 'var(--brand-red-soft)' : 'transparent', cursor: canEdit ? 'pointer' : 'default' }} onClick={() => canEdit && startFunnelEdit(m.monthIdx)} onMouseEnter={(e) => { if (canEdit) e.currentTarget.style.background = 'var(--row-hover)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = isCurrent ? 'var(--brand-red-soft)' : 'transparent'; }}>
+                    <td style={{ ...TD, fontFamily: FH, fontWeight: isCurrent ? 700 : 500, color: isCurrent ? '#2563eb' : 'var(--text-primary)' }}>{m.month}</td>
+                    <td style={{ ...TD, fontFamily: FM, fontWeight: 700, color: '#0284c7' }}>{m.leads || '—'}</td>
                     <td style={{ ...TD, fontFamily: FM }}>{m.set}</td>
                     <td style={{ ...TD, fontFamily: FM }}>{m.kept}</td>
                     <td style={{ ...TD, fontFamily: FM, fontWeight: 700, color: '#16a34a' }}>{m.sold}</td>
-                    <td style={TD}><span style={{ fontFamily: FM, fontWeight: 700, color: setRate >= 15 ? '#16a34a' : setRate >= 10 ? '#d97706' : '#b91c1c' }}>{dl > 0 ? setRate + '%' : '—'}</span></td>
+                    <td style={TD}><span style={{ fontFamily: FM, fontWeight: 700, color: setRate >= 15 ? '#16a34a' : setRate >= 10 ? '#d97706' : '#b91c1c' }}>{m.leads > 0 ? setRate + '%' : '—'}</span></td>
                     <td style={TD}><span style={{ fontFamily: FM, fontWeight: 700, color: cr >= 60 ? '#16a34a' : cr >= 40 ? '#d97706' : '#b91c1c' }}>{cr}%</span></td>
+                    <td style={{ ...TD, fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>{canEdit ? 'edit' : ''}{m.hasHistory ? ' *' : ''}</td>
                   </tr>
                 );
               })}
-              {monthlySummary.length > 1 && (
-                <tr style={{ background: 'var(--bg-tertiary)', borderTop: '2px solid #2563eb' }}>
-                  <td style={{ ...TD, fontFamily: FH, fontWeight: 700, letterSpacing: 1 }}>YTD</td>
-                  <td style={{ ...TD, fontFamily: FH, fontWeight: 700, color: '#0284c7' }}>{ytdDigitalLeads}</td>
-                  <td style={{ ...TD, fontFamily: FM, fontWeight: 700 }}>{yearTotals.set}</td>
-                  <td style={{ ...TD, fontFamily: FM, fontWeight: 700 }}>{yearTotals.kept}</td>
-                  <td style={{ ...TD, fontFamily: FH, fontWeight: 700, color: '#16a34a' }}>{yearTotals.sold}</td>
-                  <td style={TD}><span style={{ fontFamily: FM, fontWeight: 700, color: '#2563eb' }}>{ytdDigitalLeads > 0 ? Math.round(yearTotals.set / ytdDigitalLeads * 100) : 0}%</span></td>
-                  <td style={TD}><span style={{ fontFamily: FM, fontWeight: 700, color: '#2563eb' }}>{yearTotals.kept > 0 ? Math.round(yearTotals.sold / yearTotals.kept * 100) : 0}%</span></td>
-                </tr>
-              )}
+              <tr style={{ background: 'var(--bg-tertiary)', borderTop: '2px solid #2563eb' }}>
+                <td style={{ ...TD, fontFamily: FH, fontWeight: 700, letterSpacing: 1 }}>YTD</td>
+                <td style={{ ...TD, fontFamily: FH, fontWeight: 700, color: '#0284c7' }}>{yearTotals.leads}</td>
+                <td style={{ ...TD, fontFamily: FM, fontWeight: 700 }}>{yearTotals.set}</td>
+                <td style={{ ...TD, fontFamily: FM, fontWeight: 700 }}>{yearTotals.kept}</td>
+                <td style={{ ...TD, fontFamily: FH, fontWeight: 700, color: '#16a34a' }}>{yearTotals.sold}</td>
+                <td style={TD}><span style={{ fontFamily: FM, fontWeight: 700, color: '#2563eb' }}>{yearTotals.leads > 0 ? Math.round(yearTotals.set / yearTotals.leads * 100) : 0}%</span></td>
+                <td style={TD}><span style={{ fontFamily: FM, fontWeight: 700, color: '#2563eb' }}>{yearTotals.kept > 0 ? Math.round(yearTotals.sold / yearTotals.kept * 100) : 0}%</span></td>
+                <td style={TD}></td>
+              </tr>
             </tbody>
           </table>
         </div>
+        <div style={{ padding: '8px 16px', fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', borderTop: '1px solid var(--border-secondary)' }}>
+          * = includes manually entered historical data. Current month uses live appointment entries.
+        </div>
       </div>
 
-      {/* Yearly ISM Leaderboard */}
+      {/* ═══ YEARLY INTERNET SALES LEADERBOARD (Editable) ═══ */}
       <div style={{ ...card, marginBottom: 16 }}>
-        <div style={{ ...cH, background: '#fefce8', borderBottomColor: '#fde68a' }}><span style={{ color: '#d97706' }}>🏆 {year} ISM YEARLY LEADERBOARD</span></div>
+        <div style={{ ...cH, background: '#fefce8', borderBottomColor: '#fde68a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ color: '#d97706' }}>🏆 {year} INTERNET SALES YEARLY LEADERBOARD</span>
+          {!editingRepHistory && (
+            <div style={{ display: 'flex', gap: 4 }}>
+              {MONTHS.slice(0, month).map((mName, mIdx) => (
+                <button key={mIdx} onClick={() => startRepEdit(mIdx)} style={{ padding: '3px 8px', borderRadius: 3, border: '1px solid var(--border-primary)', background: 'var(--card-bg)', fontFamily: FM, fontSize: 8, color: 'var(--text-muted)', cursor: 'pointer' }}>{mName.substring(0, 3).toUpperCase()}</button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Rep history edit panel */}
+        {editingRepHistory && (
+          <div style={{ background: '#fefce8', borderBottom: '2px solid #fde68a', padding: 16 }}>
+            <div style={{ fontFamily: FH, fontSize: 12, fontWeight: 700, color: '#d97706', marginBottom: 10 }}>
+              EDIT REP DATA — {MONTHS[editingRepHistory.monthIdx].toUpperCase()} {year}
+            </div>
+            <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginBottom: 10 }}>
+              Enter historical counts per rep. These are added on top of any appointments already logged.
+            </div>
+            <div style={{ overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr>{['Rep', 'Leads', 'Set', 'Showed', 'Sold'].map((h) => <th key={h} style={{ ...TH, background: '#fefce8' }}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {act.map((sp) => {
+                    const rd = editingRepHistory.reps[sp.id] || { leads: 0, set: 0, kept: 0, sold: 0 };
+                    const upd = (k, v) => setEditingRepHistory({ ...editingRepHistory, reps: { ...editingRepHistory.reps, [sp.id]: { ...rd, [k]: parseInt(v) || 0 } } });
+                    return (
+                      <tr key={sp.id}>
+                        <td style={{ ...TD, fontFamily: FH, fontWeight: 700 }}>{sp.name}</td>
+                        <td style={{ ...TD, textAlign: 'center' }}><input type="number" min="0" value={rd.leads} onChange={(e) => upd('leads', e.target.value)} style={numInp} /></td>
+                        <td style={{ ...TD, textAlign: 'center' }}><input type="number" min="0" value={rd.set} onChange={(e) => upd('set', e.target.value)} style={numInp} /></td>
+                        <td style={{ ...TD, textAlign: 'center' }}><input type="number" min="0" value={rd.kept} onChange={(e) => upd('kept', e.target.value)} style={numInp} /></td>
+                        <td style={{ ...TD, textAlign: 'center' }}><input type="number" min="0" value={rd.sold} onChange={(e) => upd('sold', e.target.value)} style={numInp} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+              <button onClick={() => setEditingRepHistory(null)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontFamily: FM, fontSize: 10, color: 'var(--text-secondary)' }}>CANCEL</button>
+              <button onClick={saveRepEdit} style={{ ...b1, background: '#d97706' }}>SAVE {MONTHS[editingRepHistory.monthIdx].toUpperCase()} DATA</button>
+            </div>
+          </div>
+        )}
+
         <div style={{ overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr>{['Rank', 'Salesperson', 'Leads', 'Set', 'Showed', 'Sold', 'Close %'].map((h) => <th key={h} style={{ ...TH, background: '#fefce8' }}>{h}</th>)}</tr></thead>
@@ -304,53 +448,6 @@ export default function ISMLeadsTab({
               ))}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* Historical Lead Entry */}
-      <div style={{ ...card }}>
-        <div style={{ ...cH, background: '#fefce8', borderBottomColor: '#fde68a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: '#d97706' }}>HISTORICAL LEAD ENTRY — {MONTHS[month].toUpperCase()}</span>
-        </div>
-        <div style={{ padding: 16 }}>
-          <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
-            BACKFILL PREVIOUS MONTHS WITH TOTAL LEAD COUNTS. SWITCH MONTH VIA HEADER DROPDOWN.
-          </div>
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 14, flexWrap: 'wrap' }}>
-            <div>
-              <label style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', letterSpacing: 1, display: 'block', marginBottom: 3 }}>LABEL / DATE RANGE</label>
-              <input type="text" id="blc-label" defaultValue={MONTHS[month] + ' ' + year} placeholder="e.g. Jan 1-31" style={{ ...inp, width: 180 }} />
-            </div>
-            <div>
-              <label style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', letterSpacing: 1, display: 'block', marginBottom: 3 }}>TOTAL LEADS</label>
-              <input type="number" id="blc-count" min="0" defaultValue="" placeholder="144" style={{ ...inp, width: 100, textAlign: 'center' }} />
-            </div>
-            <button onClick={() => {
-              const labelEl = document.getElementById('blc-label');
-              const countEl = document.getElementById('blc-count');
-              const label = labelEl.value.trim(); const count = parseInt(countEl.value) || 0;
-              if (!label || count <= 0) return;
-              saveBLC([...bulkLeadCounts, { id: Date.now().toString(), label, count }]);
-              countEl.value = '';
-            }} style={{ ...b1, background: '#d97706', padding: '7px 16px' }}>ADD ENTRY</button>
-          </div>
-          {bulkLeadCounts.length > 0 && (
-            <div>
-              {bulkLeadCounts.map((b) => (
-                <div key={b.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--border-secondary)' }}>
-                  <span style={{ fontFamily: FH, fontSize: 12, fontWeight: 600 }}>{b.label}</span>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontFamily: FM, fontWeight: 700, color: '#d97706', fontSize: 14 }}>{b.count} leads</span>
-                    <button onClick={() => saveBLC(bulkLeadCounts.filter((x) => x.id !== b.id))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button>
-                  </div>
-                </div>
-              ))}
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderTop: '2px solid #d97706', marginTop: 4 }}>
-                <span style={{ fontFamily: FH, fontWeight: 700, fontSize: 11, letterSpacing: 1 }}>BULK TOTAL</span>
-                <span style={{ fontFamily: FH, fontWeight: 700, color: '#d97706', fontSize: 14 }}>{bulkTotal}</span>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 

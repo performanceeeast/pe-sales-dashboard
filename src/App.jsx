@@ -245,6 +245,19 @@ export default function App() {
   }
   useEffect(() => { if (view === 'history') loadHistory(historyYear); }, [view]);
 
+  // Reload yearly data (used after editing historical ISM data)
+  async function reloadYearData() {
+    const yd = await loadYear(storeId, year);
+    const aL = [], aD = [];
+    yd.forEach((m, i) => {
+      if (m) {
+        (m.leads || []).forEach((l) => aL.push({ ...l, _month: i }));
+        (m.deals || []).forEach((d) => aD.push({ ...d, _month: i }));
+      }
+    });
+    setYearlyLeads(aL); setYearlyDeals(aD); setYearlyMonthData(yd);
+  }
+
   // ── Derived ──
   // Active salespeople — prefer real crm_users accounts, fall back to monthly sp list
   const act = useMemo(() => crmUsers.length > 0
@@ -380,7 +393,7 @@ export default function App() {
               }}>{v.label}</button>
             ))}
           </div>
-          {leadsSub === 'ism' && <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} addLead={addLead} delLead={delLead} updLead={updLead} modal={modal} setModal={setModal} />}
+          {leadsSub === 'ism' && <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} addLead={addLead} delLead={delLead} updLead={updLead} modal={modal} setModal={setModal} saveHistoryMonth={saveHistoryMonth} reloadYear={reloadYearData} />}
           {leadsSub === 'floor' && <FloorLeadsTab month={month} year={year} deals={deals} act={act} spList={spList} floorDailyLeadCounts={floorDailyLeadCounts} floorBulkLeadCounts={floorBulkLeadCounts} yearlyDeals={yearlyDeals} yearlyMonthData={yearlyMonthData} saveFloorDLC={saveFloorDLC} saveFloorBLC={saveFloorBLC} />}
         </div>
       )}
