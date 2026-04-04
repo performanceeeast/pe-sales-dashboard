@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { MONTHS } from '../lib/constants';
-import { ProgressBar, StatCard, styles, FM, FH } from '../components/SharedUI';
+import { ProgressBar, StatCard, Modal, styles, FM, FH } from '../components/SharedUI';
+import { LeadForm } from '../components/Forms';
 
 const { card, cardHead: cH, input: inp, btn1: b1, th: TH, td: TD } = styles;
 
 export default function ISMLeadsTab({
   month, year, leads, spList, act, ls,
   dailyLeadCounts, bulkLeadCounts, yearlyLeads, yearlyMonthData,
-  saveDLC, saveBLC,
+  saveDLC, saveBLC, addLead, delLead, updLead, modal, setModal,
 }) {
+  const [editingLead, setEditingLead] = useState(null);
+
   const repLeadStats = act.map((sp) => {
     const rl = leads.filter((l) => l.salesperson === sp.id);
     const set = rl.filter((l) => l.apptDate).length;
@@ -47,16 +50,43 @@ export default function ISMLeadsTab({
   });
   const ytdDigitalLeads = yearlyDailyTotals.reduce((s, v) => s + v, 0);
 
+  const sorted = leads.slice().sort((a, b) => (b.leadDate || '').localeCompare(a.leadDate || ''));
+
+  function handleEdit(lead) {
+    setEditingLead(lead);
+    setModal('editLead');
+  }
+
+  function handleSaveEdit(updated) {
+    // Preserve showed/sold state from the original lead
+    const original = leads.find((l) => l.id === updated.id);
+    const merged = { ...updated, showed: original?.showed || false, sold: original?.sold || false };
+    // Update all fields at once
+    const updatedLeads = leads.map((l) => l.id === merged.id ? merged : l);
+    // Use updLead pattern but for full replacement
+    Object.keys(merged).forEach((k) => {
+      if (k !== 'id' && merged[k] !== original?.[k]) {
+        updLead(merged.id, k, merged[k]);
+      }
+    });
+    setEditingLead(null);
+    setModal(null);
+  }
+
   return (
     <div>
-      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 16px', marginBottom: 14, fontFamily: FM, fontSize: 11, color: '#2563eb', display: 'flex', alignItems: 'center', gap: 8 }}>
-        📋 All entries = ISM appointment-set conversions handed off to assigned salesperson.
+      {/* Header with button */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '10px 16px', fontFamily: FM, fontSize: 11, color: '#2563eb', display: 'flex', alignItems: 'center', gap: 8, flex: 1, marginRight: 10 }}>
+          ISM appointment tracking — log appointments, track show rates and conversions.
+        </div>
+        <button onClick={() => setModal('addLead')} style={{ ...b1, background: '#2563eb', whiteSpace: 'nowrap' }}>+ NEW APPOINTMENT</button>
       </div>
 
       {/* Daily Lead Count Input */}
       <div style={{ ...card, marginBottom: 16 }}>
         <div style={{ ...cH, background: '#f0f9ff', borderBottomColor: '#bae6fd' }}>
-          <span style={{ color: '#0284c7' }}>📊 DAILY INTERNET LEAD COUNT — {MONTHS[month].toUpperCase()}</span>
+          <span style={{ color: '#0284c7' }}>DAILY INTERNET LEAD COUNT — {MONTHS[month].toUpperCase()}</span>
         </div>
         <div style={{ padding: 16 }}>
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', marginBottom: 14, flexWrap: 'wrap' }}>
@@ -107,6 +137,60 @@ export default function ISMLeadsTab({
               </table>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* ═══ APPOINTMENT LOG ═══ */}
+      <div style={{ ...card, marginBottom: 16 }}>
+        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#eff6ff', borderBottomColor: '#bfdbfe' }}>
+          <span style={{ color: '#2563eb' }}>APPOINTMENT LOG — {MONTHS[month].toUpperCase()} {year}</span>
+          <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>{leads.length} APPOINTMENT{leads.length !== 1 ? 'S' : ''}</span>
+        </div>
+        <div style={{ overflow: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                {['Date', 'Customer', 'Unit Interested', 'Rep', 'Source', 'Appt Kept', 'Sold', ''].map((h) => (
+                  <th key={h} style={{ ...TH, background: '#f8fafc' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {leads.length === 0 && (
+                <tr><td colSpan={8} style={{ ...TD, padding: 50, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 12 }}>
+                  <div style={{ marginBottom: 8, fontSize: 28, opacity: 0.3 }}>📋</div>
+                  No appointments logged for {MONTHS[month]}. Click <strong style={{ color: '#2563eb' }}>+ NEW APPOINTMENT</strong> to get started.
+                </td></tr>
+              )}
+              {sorted.map((l) => {
+                const rep = spList.find((s) => s.id === l.salesperson);
+                return (
+                  <tr key={l.id} style={{ cursor: 'pointer' }} onClick={() => handleEdit(l)} onMouseEnter={(e) => e.currentTarget.style.background = 'var(--row-hover)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                    <td style={{ ...TD, fontFamily: FM, fontSize: 11 }}>{l.apptDate || l.leadDate || '—'}</td>
+                    <td style={{ ...TD, fontWeight: 600 }}>{l.customer || '—'}</td>
+                    <td style={{ ...TD, fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)' }}>{l.unitInterested || '—'}</td>
+                    <td style={TD}>{rep?.name?.split(' ')[0] || '—'}</td>
+                    <td style={{ ...TD, fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>{l.source || '—'}</td>
+                    <td style={{ ...TD, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <input type="checkbox" checked={!!l.showed} onChange={(e) => updLead(l.id, 'showed', e.target.checked)} />
+                        <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: l.showed ? '#d97706' : 'var(--text-muted)' }}>{l.showed ? 'YES' : ''}</span>
+                      </label>
+                    </td>
+                    <td style={{ ...TD, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                        <input type="checkbox" checked={!!l.sold} onChange={(e) => updLead(l.id, 'sold', e.target.checked)} />
+                        <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: l.sold ? '#16a34a' : 'var(--text-muted)' }}>{l.sold ? 'YES' : ''}</span>
+                      </label>
+                    </td>
+                    <td style={TD} onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => { if (confirm(`Delete appointment for ${l.customer || 'this customer'}?`)) delLead(l.id); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -226,7 +310,7 @@ export default function ISMLeadsTab({
       {/* Historical Lead Entry */}
       <div style={{ ...card }}>
         <div style={{ ...cH, background: '#fefce8', borderBottomColor: '#fde68a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: '#d97706' }}>📁 HISTORICAL LEAD ENTRY — {MONTHS[month].toUpperCase()}</span>
+          <span style={{ color: '#d97706' }}>HISTORICAL LEAD ENTRY — {MONTHS[month].toUpperCase()}</span>
         </div>
         <div style={{ padding: 16 }}>
           <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.6 }}>
@@ -270,6 +354,17 @@ export default function ISMLeadsTab({
         </div>
       </div>
 
+      {/* Add Appointment Modal */}
+      <Modal open={modal === 'addLead'} onClose={() => setModal(null)} title="Log New Appointment">
+        <LeadForm spList={act} onSave={addLead} onCancel={() => setModal(null)} />
+      </Modal>
+
+      {/* Edit Appointment Modal */}
+      <Modal open={modal === 'editLead' && editingLead} onClose={() => { setEditingLead(null); setModal(null); }} title="Edit Appointment">
+        {editingLead && (
+          <LeadForm spList={act} onSave={handleSaveEdit} onCancel={() => { setEditingLead(null); setModal(null); }} editLead={editingLead} />
+        )}
+      </Modal>
     </div>
   );
 }

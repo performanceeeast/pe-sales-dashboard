@@ -380,7 +380,7 @@ export default function App() {
               }}>{v.label}</button>
             ))}
           </div>
-          {leadsSub === 'ism' && <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} />}
+          {leadsSub === 'ism' && <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} addLead={addLead} delLead={delLead} updLead={updLead} modal={modal} setModal={setModal} />}
           {leadsSub === 'floor' && <FloorLeadsTab month={month} year={year} deals={deals} act={act} spList={spList} floorDailyLeadCounts={floorDailyLeadCounts} floorBulkLeadCounts={floorBulkLeadCounts} yearlyDeals={yearlyDeals} yearlyMonthData={yearlyMonthData} saveFloorDLC={saveFloorDLC} saveFloorBLC={saveFloorBLC} />}
         </div>
       )}

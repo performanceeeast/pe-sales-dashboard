@@ -196,10 +196,10 @@ export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTyp
 }
 
 /* ═══ Lead Form ═══ */
-export function LeadForm({ spList, onSave, onCancel }) {
-  const [f, sF] = useState({
+export function LeadForm({ spList, onSave, onCancel, editLead }) {
+  const [f, sF] = useState(editLead ? { ...editLead } : {
     leadDate: new Date().toISOString().split('T')[0], apptDate: '',
-    customer: '', salesperson: spList[0]?.id || '', source: 'WEBSITE',
+    customer: '', unitInterested: '', salesperson: spList[0]?.id || '', source: 'WEBSITE',
     showed: false, sold: false,
   });
   const u = (k, v) => sF((p) => ({ ...p, [k]: v }));
@@ -209,18 +209,20 @@ export function LeadForm({ spList, onSave, onCancel }) {
         <div><label style={lbl}>LEAD DATE</label><input type="date" value={f.leadDate} onChange={(e) => u('leadDate', e.target.value)} style={inp} /></div>
         <div><label style={lbl}>APPOINTMENT DATE</label><input type="date" value={f.apptDate} onChange={(e) => u('apptDate', e.target.value)} style={inp} /></div>
       </div>
-      <div><label style={lbl}>CUSTOMER NAME</label><input value={f.customer} onChange={(e) => u('customer', e.target.value)} style={inp} /></div>
+      <div><label style={lbl}>CUSTOMER NAME</label><input value={f.customer} onChange={(e) => u('customer', e.target.value)} style={inp} placeholder="LAST, FIRST" /></div>
+      <div><label style={lbl}>UNIT INTERESTED IN</label><input value={f.unitInterested || ''} onChange={(e) => u('unitInterested', e.target.value)} style={inp} placeholder="e.g. 2024 Polaris General XP 1000" /></div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div><label style={lbl}>ASSIGNED SALESPERSON</label><select value={f.salesperson} onChange={(e) => u('salesperson', e.target.value)} style={inp}>{spList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+        <div><label style={lbl}>ASSIGNED SALESPERSON</label>
+          <select value={f.salesperson} onChange={(e) => u('salesperson', e.target.value)} style={{ ...inp, borderColor: !f.salesperson ? '#d97706' : undefined }}>
+            <option value="">— Select Rep —</option>
+            {spList.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
         <div><label style={lbl}>LEAD SOURCE</label><select value={f.source} onChange={(e) => u('source', e.target.value)} style={inp}>{LEAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
-      </div>
-      <div style={{ display: 'flex', gap: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer' }}><input type="checkbox" checked={f.showed} onChange={(e) => u('showed', e.target.checked)} /> SHOWED</label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer' }}><input type="checkbox" checked={f.sold} onChange={(e) => u('sold', e.target.checked)} /> SOLD</label>
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button onClick={onCancel} style={b2}>CANCEL</button>
-        <button onClick={() => onSave(f)} style={b1}>SAVE APPOINTMENT</button>
+        <button onClick={() => onSave(f)} style={{ ...b1, background: '#2563eb' }}>{editLead ? 'UPDATE APPOINTMENT' : 'SAVE APPOINTMENT'}</button>
       </div>
     </div>
   );
