@@ -119,6 +119,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       setLoading(true);
+      try {
       const data = await loadMonth(storeId, year, month);
       if (data) {
         setDeals(data.deals || []); setLeads(data.leads || []); setFloorLeads(data.floorLeads || []);
@@ -161,6 +162,9 @@ export default function App() {
         }
       });
       setYearlyLeads(aL); setYearlyDeals(aD); setYearlyMonthData(yd);
+      } catch (e) {
+        console.error('Data load error:', e);
+      }
       setLoading(false);
     })();
   }, [storeId, year, month]);

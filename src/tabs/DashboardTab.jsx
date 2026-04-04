@@ -4,7 +4,6 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
 import { MONTHS, UNIT_TYPES as DEFAULT_UNIT_TYPES, UNIT_COLORS, STAR_CHECKLIST } from '../lib/constants';
-import { getSpUnits } from '../lib/calculations';
 import { ProgressBar, StatCard, styles, FM, FH } from '../components/SharedUI';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = styles;
@@ -28,18 +27,19 @@ export default function DashboardTab({
 
   // Monthly PG&A leaderboard (from deals this month)
   const pgaLeaderboard = useMemo(() => {
-    return (act || []).map((sp) => {
+    if (!deals || !act) return [];
+    return act.map((sp) => {
       const repDeals = deals.filter((d) => d.salesperson === sp.id);
       const totalPga = repDeals.reduce((s, d) => s + (d.pgaAmount || 0), 0);
-      const totalUnits = UNIT_TYPES.reduce((s, u) => repDeals.reduce((s2, d) => s2 + (d.units?.[u] || 0), s2), 0);
-      return { ...sp, totalPga, totalUnits, dealCount: repDeals.length };
+      return { ...sp, totalPga, dealCount: repDeals.length };
     }).filter((r) => r.totalPga > 0 || r.dealCount > 0).sort((a, b) => b.totalPga - a.totalPga);
-  }, [deals, act, UNIT_TYPES]);
+  }, [deals, act]);
 
   // YTD PG&A leaderboard
   const ytdPgaLeaderboard = useMemo(() => {
-    return (act || []).map((sp) => {
-      const repDeals = (yearlyDeals || []).filter((d) => d.salesperson === sp.id);
+    if (!yearlyDeals || !act) return [];
+    return act.map((sp) => {
+      const repDeals = yearlyDeals.filter((d) => d.salesperson === sp.id);
       const totalPga = repDeals.reduce((s, d) => s + (d.pgaAmount || 0), 0);
       return { ...sp, totalPga, dealCount: repDeals.length };
     }).filter((r) => r.totalPga > 0).sort((a, b) => b.totalPga - a.totalPga);
@@ -47,7 +47,8 @@ export default function DashboardTab({
 
   // Monthly unit sales leaderboard
   const monthlyUnitLeaderboard = useMemo(() => {
-    return (act || []).map((sp) => {
+    if (!deals || !act) return [];
+    return act.map((sp) => {
       const u = {};
       UNIT_TYPES.forEach((t) => { u[t] = 0; });
       deals.filter((d) => d.salesperson === sp.id).forEach((d) => {
