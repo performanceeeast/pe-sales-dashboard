@@ -310,9 +310,12 @@ export default function App() {
   if (loading) {
     return (
       <div style={{ fontFamily: FB, background: 'var(--bg-primary)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <img src={storeTheme?.logo || '/logo.png'} alt="Performance East" style={{ height: 50, marginBottom: 12 }} />
-          <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2 }}>LOADING SALES TRACKER...</div>
+        <div style={{ textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
+          <img src={storeTheme?.logo || '/logo.png'} alt="Performance East" style={{ height: 50, marginBottom: 16 }} />
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <span style={{ display: 'inline-block', width: 20, height: 20, border: '2px solid var(--border-primary)', borderTopColor: 'var(--brand-red)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+          </div>
+          <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2 }}>LOADING...</div>
         </div>
       </div>
     );
