@@ -35,7 +35,7 @@ export default function DealsTab({
       <div style={{ ...card, overflow: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr>{['Date', 'Customer', 'Rep', 'Deal #', ...UNIT_TYPES, 'PG&A', 'BE', 'Tot', ''].map((h) => <th key={h} style={TH}>{h}</th>)}</tr>
+            <tr>{['Date', 'Customer', 'Rep', 'Deal #', ...UNIT_TYPES, 'P&L', 'BE', 'Tot', ''].map((h) => <th key={h} style={TH}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {deals.length === 0 && (

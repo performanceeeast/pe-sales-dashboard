@@ -42,7 +42,7 @@ export default function RepDashboard({ selRep, setSelRep, spList, deals, leads, 
               <div style={{ fontFamily: FM, fontSize: 8, color: 'var(--text-muted)', letterSpacing: 1, marginTop: 3 }}>{t}</div>
             </div>
           ))}
-          <StatCard label="PG&A" value={'$' + sf.totalPga} accent="#d97706" />
+          <StatCard label="P&L" value={'$' + sf.totalPga} accent="#d97706" />
           <StatCard label="BACK END" value={'$' + sf.totalBe} accent="#16a34a" />
           <StatCard label="HIT LIST" value={'$' + sf.totalHit} accent="#7c3aed" />
           <StatCard label="TOTAL" value={'$' + sf.totalSpiffs} accent="var(--brand-red)" />
@@ -70,7 +70,7 @@ export default function RepDashboard({ selRep, setSelRep, spList, deals, leads, 
           <div style={cH}>DEAL & SPIFF BREAKDOWN</div>
           <div style={{ overflow: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>{['Date', 'Customer', 'Deal #', 'Units', 'PG&A', 'PG&A $', 'BE $', 'Hit $', 'Total $'].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+              <thead><tr>{['Date', 'Customer', 'Deal #', 'Units', 'P&L', 'P&L $', 'BE $', 'Hit $', 'Total $'].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
               <tbody>
                 {sf.deals.length === 0 && <tr><td colSpan={9} style={{ ...TD, padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO DEALS YET</td></tr>}
                 {sf.deals.sort((a, b) => (a.date || '').localeCompare(b.date || '')).map((d) => {

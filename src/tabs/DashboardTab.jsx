@@ -25,7 +25,7 @@ export default function DashboardTab({
   const combinedLeads = (ls.total || 0) + (floorTrafficStats.total || 0);
   const combinedSold = (ls.sold || 0) + (floorTrafficStats.sold || 0);
 
-  // Monthly PG&A leaderboard (from deals this month)
+  // Monthly PARTS & LABOR leaderboard (from deals this month)
   const pgaLeaderboard = useMemo(() => {
     if (!deals || !act) return [];
     return act.map((sp) => {
@@ -35,7 +35,7 @@ export default function DashboardTab({
     }).filter((r) => r.totalPga > 0 || r.dealCount > 0).sort((a, b) => b.totalPga - a.totalPga);
   }, [deals, act]);
 
-  // YTD PG&A leaderboard
+  // YTD PARTS & LABOR leaderboard
   const ytdPgaLeaderboard = useMemo(() => {
     if (!yearlyDeals || !act) return [];
     return act.map((sp) => {
@@ -237,7 +237,7 @@ export default function DashboardTab({
           </div>
           <div style={{ overflow: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr>{['Rank', 'Salesperson', ...UNIT_TYPES, 'TOTAL', 'PG&A $'].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+              <thead><tr>{['Rank', 'Salesperson', ...UNIT_TYPES, 'TOTAL', 'PARTS & LABOR $'].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
               <tbody>
                 {monthlyUnitLeaderboard.map((r, idx) => {
                   const medal = idx === 0 ? '\uD83E\uDD47' : idx === 1 ? '\uD83E\uDD48' : idx === 2 ? '\uD83E\uDD49' : (idx + 1);
@@ -258,16 +258,16 @@ export default function DashboardTab({
         </div>
       )}
 
-      {/* ── PG&A LEADERBOARD (Monthly + YTD) ── */}
+      {/* ── PARTS & LABOR LEADERBOARD (Monthly + YTD) ── */}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
-        {/* Monthly PG&A */}
+        {/* Monthly PARTS & LABOR */}
         <div style={{ ...card, flex: 1, minWidth: 280 }}>
           <div style={{ ...cH, background: '#fffbeb', borderBottomColor: '#fde68a' }}>
-            <span style={{ color: '#d97706' }}>{'\uD83D\uDCB0'} PG&A RANKINGS — {MONTHS[month].toUpperCase()}</span>
+            <span style={{ color: '#d97706' }}>{'\uD83D\uDCB0'} PARTS & LABOR RANKINGS — {MONTHS[month].toUpperCase()}</span>
           </div>
           <div style={{ padding: 0 }}>
             {pgaLeaderboard.length === 0 ? (
-              <div style={{ padding: 20, textAlign: 'center', fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>No PG&A data this month</div>
+              <div style={{ padding: 20, textAlign: 'center', fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>No PARTS & LABOR data this month</div>
             ) : pgaLeaderboard.map((r, idx) => (
               <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid var(--border-secondary)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -283,14 +283,14 @@ export default function DashboardTab({
           </div>
         </div>
 
-        {/* YTD PG&A */}
+        {/* YTD PARTS & LABOR */}
         <div style={{ ...card, flex: 1, minWidth: 280 }}>
           <div style={{ ...cH, background: '#fffbeb', borderBottomColor: '#fde68a' }}>
-            <span style={{ color: '#d97706' }}>{'\uD83D\uDCB0'} PG&A RANKINGS — {year} YTD</span>
+            <span style={{ color: '#d97706' }}>{'\uD83D\uDCB0'} PARTS & LABOR RANKINGS — {year} YTD</span>
           </div>
           <div style={{ padding: 0 }}>
             {ytdPgaLeaderboard.length === 0 ? (
-              <div style={{ padding: 20, textAlign: 'center', fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>No YTD PG&A data</div>
+              <div style={{ padding: 20, textAlign: 'center', fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>No YTD PARTS & LABOR data</div>
             ) : ytdPgaLeaderboard.map((r, idx) => (
               <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', borderBottom: '1px solid var(--border-secondary)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

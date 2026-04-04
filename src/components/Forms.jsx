@@ -62,7 +62,7 @@ export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTyp
 
       {/* PG&A */}
       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: 14 }}>
-        <label style={{ ...lbl, color: '#d97706' }}>PG&A AMOUNT (PER UNIT)</label>
+        <label style={{ ...lbl, color: '#d97706' }}>PARTS & LABOR AMOUNT (PER UNIT)</label>
         <input type="number" min="0" value={f.pgaAmount || ''} onChange={(e) => u('pgaAmount', parseInt(e.target.value) || 0)} style={inp} placeholder="Dollar amount" />
         {tier && amt > 0 && (
           <div style={{ fontFamily: FM, fontSize: 10, color: '#d97706', marginTop: 6 }}>

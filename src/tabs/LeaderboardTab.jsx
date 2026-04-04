@@ -47,7 +47,7 @@ export default function LeaderboardTab({ month, year, deals, act, pgaTiers, beSp
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <div style={{ background: '#fffbeb', borderRadius: 6, padding: '6px 10px', textAlign: 'center' }}>
                 <div style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: '#d97706' }}>${totalPga.toLocaleString()}</div>
-                <div style={{ fontFamily: FM, fontSize: 7, color: 'var(--text-muted)' }}>PG&A</div>
+                <div style={{ fontFamily: FM, fontSize: 7, color: 'var(--text-muted)' }}>P&L</div>
               </div>
               <div style={{ background: '#f0fdf4', borderRadius: 6, padding: '6px 10px', textAlign: 'center' }}>
                 <div style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: '#16a34a' }}>${sf.totalSpiffs}</div>

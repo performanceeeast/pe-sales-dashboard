@@ -56,7 +56,7 @@ export default function GoalsTab({
       {/* Spiff Cards */}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
         <div style={{ ...card, flex: 1, minWidth: 240 }}>
-          <div style={{ ...cH, display: 'flex', justifyContent: 'space-between' }}><span>PG&A FLATS</span><button onClick={() => setModal('editPga')} style={{ background: 'none', border: 'none', fontFamily: FM, fontSize: 9, color: 'var(--brand-red)', cursor: 'pointer', fontWeight: 700 }}>EDIT</button></div>
+          <div style={{ ...cH, display: 'flex', justifyContent: 'space-between' }}><span>PARTS & LABOR FLATS</span><button onClick={() => setModal('editPga')} style={{ background: 'none', border: 'none', fontFamily: FM, fontSize: 9, color: 'var(--brand-red)', cursor: 'pointer', fontWeight: 700 }}>EDIT</button></div>
           <div style={{ padding: 14 }}>{pgaTiers.map((t, i) => (<div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-secondary)', fontSize: 12 }}><span style={{ fontFamily: FM, fontSize: 11 }}>${t.min.toLocaleString()} – {t.max >= 999999 ? '$10,000+' : '$' + t.max.toLocaleString()}</span><span style={{ fontFamily: FM, fontWeight: 700, color: '#16a34a' }}>${t.amount}</span></div>))}</div>
         </div>
         <div style={{ ...card, flex: 1, minWidth: 240 }}>
@@ -120,7 +120,7 @@ export default function GoalsTab({
       {/* Modals */}
       <Modal open={modal === 'editGoals'} onClose={() => setModal(null)} title="Edit Monthly Goals"><GoalForm goals={goals} onSave={saveGoals} onCancel={() => setModal(null)} unitTypes={UNIT_TYPES} /></Modal>
       <Modal open={modal === 'reps'} onClose={() => setModal(null)} title="Manage Salespeople"><RepForm reps={spList} onSave={saveReps} onCancel={() => setModal(null)} /></Modal>
-      <Modal open={modal === 'editPga'} onClose={() => setModal(null)} title="Edit PG&A Flat Tiers"><PgaForm tiers={pgaTiers} onSave={savePga} onCancel={() => setModal(null)} /></Modal>
+      <Modal open={modal === 'editPga'} onClose={() => setModal(null)} title="Edit Parts & Labor Flat Tiers"><PgaForm tiers={pgaTiers} onSave={savePga} onCancel={() => setModal(null)} /></Modal>
       <Modal open={modal === 'editBe'} onClose={() => setModal(null)} title="Edit Back End Spiffs"><BeForm spiffs={beSpiffs} onSave={saveBe} onCancel={() => setModal(null)} /></Modal>
       <Modal open={modal === 'addHit'} onClose={() => setModal(null)} title="Add Unit to Hit List"><HitForm onSave={(h) => { saveHL([...hitList, { ...h, id: Date.now().toString(), sold: false, soldBy: null, dealNumber: '' }]); setModal(null); }} onCancel={() => setModal(null)} /></Modal>
       <Modal open={modal === 'addContest'} onClose={() => setModal(null)} title="Add Monthly Contest"><ContestForm onSave={(c) => { saveCT([...contests, { ...c, id: Date.now().toString(), winners: [] }]); setModal(null); }} onCancel={() => setModal(null)} /></Modal>
