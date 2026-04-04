@@ -117,7 +117,7 @@ export default function ISMLeadsTab({
       ismHistoryCounts: { leads: editingFunnel.leads, set: editingFunnel.set, kept: editingFunnel.kept, sold: editingFunnel.sold },
     });
     setEditingFunnel(null);
-    if (reloadYear) reloadYear();
+    if (reloadYear) await reloadYear();
   }
 
   // ── Rep history editing ──
@@ -138,7 +138,7 @@ export default function ISMLeadsTab({
     const arr = Object.entries(editingRepHistory.reps).map(([repId, data]) => ({ repId, ...data }));
     await saveHistoryMonth(year, editingRepHistory.monthIdx, { ismRepHistory: arr });
     setEditingRepHistory(null);
-    if (reloadYear) reloadYear();
+    if (reloadYear) await reloadYear();
   }
 
   return (

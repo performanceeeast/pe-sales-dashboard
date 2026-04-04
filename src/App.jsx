@@ -335,7 +335,7 @@ export default function App() {
   const allTabs = [
     ['dashboard', 'DASHBOARD', 'HOME', 'main'],
     ['sales', 'SALES', 'SALES', 'main'],
-    ['leads', 'LEADS', 'LEADS', 'leads'],
+    ['leads', storeConfig?.has_ism !== false ? 'INTERNET SALES' : 'LEADS', storeConfig?.has_ism !== false ? 'I-SALES' : 'LEADS', 'leads'],
     ['manager', 'MANAGER', 'MGR', 'mgmt'],
     ['financeDash', 'F&I', 'F&I', 'mgmt'],
     ['history', 'HISTORICAL DATA', 'HISTORY', 'main'],
@@ -354,7 +354,7 @@ export default function App() {
       {showAdmin && canManageUsers(currentUser) && <AdminPanel storeId={storeId} storeConfig={storeConfig} />}
 
       {/* HOME — Dashboard (preserved) */}
-      {!showAdmin && view === 'dashboard' && <DashboardTab month={month} year={year} goals={goals} tot={tot} tTgt={tTgt} tStr={tStr} ls={ls} floorTrafficStats={floorTrafficStats} yearlyMonthSales={yearlyMonthSales} ytdTotal={ytdTotal} yearlyRepPerf={yearlyRepPerf} notes={notes} saveNotes={saveNotes} meetingNotes={meetingNotes} saveMeetingNotes={saveMeetingNotes} deals={deals} currentUser={currentUser} act={act} updateDeal={updateDeal} unitTypes={unitTypes} setView={setView} setSalesSub={setSalesSub} setModal={setModal} pgaTiers={pgaTiers} yearlyDeals={yearlyDeals} />}
+      {!showAdmin && view === 'dashboard' && <DashboardTab month={month} year={year} goals={goals} tot={tot} tTgt={tTgt} tStr={tStr} ls={ls} floorTrafficStats={floorTrafficStats} yearlyMonthSales={yearlyMonthSales} ytdTotal={ytdTotal} yearlyRepPerf={yearlyRepPerf} notes={notes} saveNotes={saveNotes} meetingNotes={meetingNotes} saveMeetingNotes={saveMeetingNotes} deals={deals} currentUser={currentUser} act={act} updateDeal={updateDeal} unitTypes={unitTypes} setView={setView} setSalesSub={setSalesSub} setModal={setModal} pgaTiers={pgaTiers} yearlyDeals={yearlyDeals} floorDailyLeadCounts={floorDailyLeadCounts} />}
 
       {/* SALES — Deals + Leaderboard + History (consolidated) */}
       {!showAdmin && view === 'sales' && (
@@ -376,33 +376,19 @@ export default function App() {
         </div>
       )}
 
-      {/* LEADS — ISM + Floor (Goldsboro) or SimpleLeads (Cedar Point) */}
+      {/* LEADS — Internet Sales (Goldsboro) or SimpleLeads (Cedar Point) */}
       {!showAdmin && view === 'leads' && storeConfig?.has_ism === false && (
         <SimpleLeadsTab month={month} year={year} deals={deals} act={act} dailyLeadCounts={dailyLeadCounts} saveDLC={saveDLC} floorDailyLeadCounts={floorDailyLeadCounts} saveFloorDLC={saveFloorDLC} />
       )}
       {!showAdmin && view === 'leads' && storeConfig?.has_ism !== false && (
-        <div>
-          <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
-            {[{ id: 'ism', label: 'INTERNET LEADS' }, { id: 'floor', label: 'FLOOR TRAFFIC' }].map((v) => (
-              <button key={v.id} onClick={() => setLeadsSub(v.id)} style={{
-                padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
-                fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
-                background: leadsSub === v.id ? 'var(--brand-red)' : 'transparent',
-                color: leadsSub === v.id ? 'var(--text-inverse)' : 'var(--text-muted)',
-                transition: 'all .15s',
-              }}>{v.label}</button>
-            ))}
-          </div>
-          {leadsSub === 'ism' && <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} addLead={addLead} delLead={delLead} updLead={updLead} modal={modal} setModal={setModal} saveHistoryMonth={saveHistoryMonth} reloadYear={reloadYearData} />}
-          {leadsSub === 'floor' && <FloorLeadsTab month={month} year={year} deals={deals} act={act} spList={spList} floorDailyLeadCounts={floorDailyLeadCounts} floorBulkLeadCounts={floorBulkLeadCounts} yearlyDeals={yearlyDeals} yearlyMonthData={yearlyMonthData} saveFloorDLC={saveFloorDLC} saveFloorBLC={saveFloorBLC} />}
-        </div>
+        <ISMLeadsTab month={month} year={year} leads={leads} spList={spList} act={act} ls={ls} dailyLeadCounts={dailyLeadCounts} bulkLeadCounts={bulkLeadCounts} yearlyLeads={yearlyLeads} yearlyMonthData={yearlyMonthData} saveDLC={saveDLC} saveBLC={saveBLC} addLead={addLead} delLead={delLead} updLead={updLead} modal={modal} setModal={setModal} saveHistoryMonth={saveHistoryMonth} reloadYear={reloadYearData} />
       )}
 
       {/* MANAGER — Goals + GSM + Pricing (consolidated) */}
       {!showAdmin && view === 'manager' && (
         <div>
           <div style={{ display: 'flex', gap: 2, background: 'var(--tab-bg)', borderRadius: 6, padding: 2, marginBottom: 14 }}>
-            {[{ id: 'goals', label: 'GOALS & SPIFFS' }, { id: 'gsm', label: 'ACCOUNTABILITY' }].map((v) => (
+            {[{ id: 'goals', label: 'GOALS & SPIFFS' }, { id: 'gsm', label: 'ACCOUNTABILITY' }, { id: 'traffic', label: 'TRAFFIC LOG' }].map((v) => (
               <button key={v.id} onClick={() => setMgrSub(v.id)} style={{
                 padding: '6px 12px', borderRadius: 4, border: 'none', cursor: 'pointer',
                 fontFamily: FH, fontSize: 9, fontWeight: 600, letterSpacing: 0.5,
@@ -414,6 +400,7 @@ export default function App() {
           </div>
           {mgrSub === 'goals' && <GoalsTab goals={goals} tot={tot} tTgt={tTgt} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} contests={contests} spList={spList} act={act} modal={modal} setModal={setModal} saveGoals={saveGoals} saveReps={saveReps} savePga={savePga} saveBe={saveBe} saveHL={saveHL} saveCT={saveCT} unitTypes={unitTypes} />}
           {mgrSub === 'gsm' && <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />}
+          {mgrSub === 'traffic' && <FloorLeadsTab month={month} year={year} deals={deals} act={act} spList={spList} floorDailyLeadCounts={floorDailyLeadCounts} floorBulkLeadCounts={floorBulkLeadCounts} yearlyDeals={yearlyDeals} yearlyMonthData={yearlyMonthData} saveFloorDLC={saveFloorDLC} saveFloorBLC={saveFloorBLC} />}
         </div>
       )}
 
