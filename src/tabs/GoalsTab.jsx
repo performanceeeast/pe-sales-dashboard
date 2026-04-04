@@ -85,7 +85,7 @@ export default function GoalsTab({
                   <td style={TD}>{h.soldBy ? (spList.find((s) => s.id === h.soldBy)?.name?.split(' ')[0] || '—') : (<select value="" onChange={(e) => saveHL(hitList.map((x) => x.id === h.id ? { ...x, soldBy: e.target.value, sold: true } : x))} style={{ ...inp, width: 'auto', padding: '3px 6px', fontSize: 11 }}><option value="">Unsold</option>{act.map((s) => <option key={s.id} value={s.id}>{s.name.split(' ')[0]}</option>)}</select>)}</td>
                   <td style={TD}>{h.soldBy ? (<input value={h.dealNumber || ''} onChange={(e) => saveHL(hitList.map((x) => x.id === h.id ? { ...x, dealNumber: e.target.value } : x))} style={{ ...inp, width: 90, padding: '3px 6px', fontSize: 11 }} placeholder="Deal #" />) : '—'}</td>
                   <td style={TD}><span style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: h.sold ? '#dcfce7' : '#fef3c7', color: h.sold ? '#16a34a' : '#d97706' }}>{h.sold ? 'SOLD' : 'ACTIVE'}</span></td>
-                  <td style={TD}><button onClick={() => saveHL(hitList.filter((x) => x.id !== h.id))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button></td>
+                  <td style={TD}><button onClick={() => { if (confirm(`Remove ${h.description || h.stockNumber || 'this unit'} from hit list?`)) saveHL(hitList.filter((x) => x.id !== h.id)); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button></td>
                 </tr>
               ))}
             </tbody>
@@ -104,7 +104,7 @@ export default function GoalsTab({
           <div key={c.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-secondary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
               <div><div style={{ fontFamily: FH, fontSize: 14, fontWeight: 700 }}>{c.name}</div>{c.description && <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>{c.description}</div>}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontFamily: FM, fontWeight: 700, color: '#d97706', fontSize: 14 }}>${c.prize}</span><button onClick={() => saveCT(contests.filter((x) => x.id !== c.id))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span style={{ fontFamily: FM, fontWeight: 700, color: '#d97706', fontSize: 14 }}>${c.prize}</span><button onClick={() => { if (confirm(`Delete contest "${c.name}"?`)) saveCT(contests.filter((x) => x.id !== c.id)); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button></div>
             </div>
             <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginRight: 6 }}>WINNERS:</span>

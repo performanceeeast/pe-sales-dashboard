@@ -56,7 +56,7 @@ export default function DealsTab({
                   <td style={{ ...TD, fontSize: 10 }}>{d.backEndProducts?.length > 0 ? d.backEndProducts.length + 'p' : '—'}</td>
                   <td style={{ ...TD, textAlign: 'center', fontFamily: FH, fontWeight: 700, fontSize: 14, color: 'var(--brand-red)' }}>{rt}</td>
                   <td style={TD} onClick={(e) => e.stopPropagation()}>
-                    {editable && <button onClick={(e) => { e.stopPropagation(); delDeal(d.id); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button>}
+                    {editable && <button onClick={(e) => { e.stopPropagation(); if (confirm(`Delete deal for ${d.customer || 'this customer'}?`)) delDeal(d.id); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>✕</button>}
                   </td>
                 </tr>
               );
