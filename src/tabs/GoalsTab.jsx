@@ -75,7 +75,7 @@ export default function GoalsTab({
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr>{['Stock #', 'Year/Make/Model', 'Days', 'Spiff', 'Sold By', 'Deal #', 'Status', ''].map((h) => <th key={h} style={{ ...TH, background: '#faf5ff' }}>{h}</th>)}</tr></thead>
             <tbody>
-              {hitList.length === 0 && <tr><td colSpan={8} style={{ ...TD, padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO UNITS ON HIT LIST</td></tr>}
+              {hitList.length === 0 && <tr><td colSpan={8} style={{ ...TD, padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>{'\uD83C\uDFAF'} No aged units on the hit list. Click <strong style={{ color: '#7c3aed' }}>+ ADD UNIT</strong> to add one.</td></tr>}
               {hitList.map((h) => (
                 <tr key={h.id}>
                   <td style={{ ...TD, fontFamily: FM, fontWeight: 700 }}>{h.stockNumber || '—'}</td>
@@ -99,7 +99,7 @@ export default function GoalsTab({
           <span style={{ color: '#d97706' }}>🏆 MONTHLY CONTESTS</span>
           <button onClick={() => setModal('addContest')} style={{ ...b1, background: '#d97706', padding: '5px 12px', fontSize: 10 }}>+ ADD CONTEST</button>
         </div>
-        {contests.length === 0 && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO CONTESTS THIS MONTH</div>}
+        {contests.length === 0 && <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>{'\uD83C\uDFC6'} No contests this month. Click <strong style={{ color: '#d97706' }}>+ ADD CONTEST</strong> to create one.</div>}
         {contests.map((c) => (
           <div key={c.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-secondary)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>

@@ -39,7 +39,7 @@ export default function DealsTab({
           </thead>
           <tbody>
             {deals.length === 0 && (
-              <tr><td colSpan={UNIT_TYPES.length + 8} style={{ ...TD, padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO DEALS LOGGED</td></tr>
+              <tr><td colSpan={UNIT_TYPES.length + 8} style={{ ...TD, padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>No deals logged this month. Click <strong style={{ color: 'var(--brand-red)' }}>+ NEW DEAL</strong> to get started.</td></tr>
             )}
             {deals.slice().sort((a, b) => (a.date || '').localeCompare(b.date || '')).map((d) => {
               const s = spList.find((x) => x.id === d.salesperson);

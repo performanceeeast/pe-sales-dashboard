@@ -49,7 +49,7 @@ export default function DashboardTab({
                 setNoteTitle(''); setNoteText('');
               }} style={{ ...b1, background: '#d97706', padding: '6px 12px', fontSize: 10 }}>PIN</button>
             </div>
-            {notes.length === 0 && <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', padding: 8 }}>No notes pinned</div>}
+            {notes.length === 0 && <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', padding: 14 }}>{'\uD83D\uDCCC'} No notes pinned yet — type above and click PIN</div>}
             {notes.map((n) => (
               <div key={n.id} style={{ background: '#fefce8', borderRadius: 6, padding: '8px 12px', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                 <div>
@@ -83,7 +83,7 @@ export default function DashboardTab({
               }} style={{ ...b1, background: '#16a34a', padding: '6px 12px', fontSize: 10 }}>ADD</button>
             </div>
             <div style={{ maxHeight: 160, overflow: 'auto' }}>
-              {meetingNotes.length === 0 && <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', padding: 8 }}>No meeting notes</div>}
+              {meetingNotes.length === 0 && <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', padding: 14 }}>{'\uD83D\uDCCB'} No meeting notes yet — add one above</div>}
               {meetingNotes.map((n) => (
                 <div key={n.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border-secondary)', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                   <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', flexShrink: 0, width: 70 }}>{n.date}</span>
