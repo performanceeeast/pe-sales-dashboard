@@ -131,8 +131,7 @@ export function Modal({ open, onClose, title, children, wide }) {
     <div
       style={{
         position: 'fixed', inset: 0, background: 'var(--modal-overlay)',
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 1000,
-        backdropFilter: 'blur(4px)', overflowY: 'auto', padding: '40px 0',
+        zIndex: 1000, backdropFilter: 'blur(4px)', overflowY: 'auto',
       }}
       onClick={onClose}
     >
@@ -140,7 +139,7 @@ export function Modal({ open, onClose, title, children, wide }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'var(--modal-bg)', borderRadius: 12, padding: 24,
-          maxWidth: wide ? 820 : 580, width: '94%',
+          maxWidth: wide ? 820 : 580, width: '94%', margin: '40px auto',
           border: '1px solid var(--border-primary)',
           boxShadow: 'var(--shadow-lg)',
           animation: 'modalIn .2s ease',
