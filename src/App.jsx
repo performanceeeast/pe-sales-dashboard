@@ -15,15 +15,15 @@ import DashboardTab from './tabs/DashboardTab';
 import DealsTab from './tabs/DealsTab';
 import ISMLeadsTab from './tabs/ISMLeadsTab';
 import FloorLeadsTab from './tabs/FloorLeadsTab';
-import LeaderboardTab from './tabs/LeaderboardTab';
+// LeaderboardTab removed from nav — kept as file for potential re-enable
 import GoalsTab from './tabs/GoalsTab';
 import HistoryTab from './tabs/HistoryTab';
 import RepDashboard from './tabs/RepDashboard';
 import GSMDashTab from './tabs/GSMDashTab';
 import FIDashTab from './tabs/FIDashTab';
-import CRMTab from './tabs/crm/index';
+// CRMTab disabled — kept as files for potential re-enable
 import PromosTab from './tabs/PromosTab';
-import InventoryTab from './tabs/InventoryTab';
+// InventoryTab removed from nav — kept as file for potential re-enable
 import SimpleLeadsTab from './tabs/SimpleLeadsTab';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = styles;
