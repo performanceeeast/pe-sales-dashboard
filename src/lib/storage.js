@@ -120,11 +120,18 @@ export async function saveUsers(users, storeId) {
 export async function saveOneUser(user, isNew = false) {
   try {
     const row = { id: user.id, name: user.name, role: user.role, pin: user.pin, active: user.active !== false, store_id: user.store_id || 'goldsboro' };
+    if (user.is_salesperson !== undefined) row.is_salesperson = user.is_salesperson;
     let result;
     if (isNew) {
       result = await supabase.from('crm_users').insert(row);
     } else {
       result = await supabase.from('crm_users').update(row).eq('id', user.id);
+    }
+    // If the column doesn't exist yet, retry without the optional field
+    if (result.error && result.error.message && result.error.message.includes('is_salesperson')) {
+      delete row.is_salesperson;
+      if (isNew) result = await supabase.from('crm_users').insert(row);
+      else result = await supabase.from('crm_users').update(row).eq('id', user.id);
     }
     if (result.error) {
       console.error('saveOneUser error:', result.error);

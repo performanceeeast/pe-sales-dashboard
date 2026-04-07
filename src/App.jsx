@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MONTHS, UNIT_TYPES, UNIT_COLORS, DEFAULT_SALESPEOPLE, DEFAULT_GOALS, DEFAULT_PGA_TIERS, DEFAULT_BE_SPIFFS } from './lib/constants';
-import { loadMonth, saveMonth, loadYear, loadUsers } from './lib/storage';
+import { loadMonth, saveMonth, loadYear, loadUsers, saveOneUser } from './lib/storage';
 import { getSpUnits, getRepSpiffs } from './lib/calculations';
 import { canSeeTab, canManageUsers, ROLES } from './lib/auth';
 import { StatCard, TabTransition, styles, FM, FH, FB } from './components/SharedUI';
@@ -308,9 +308,26 @@ export default function App() {
 
   // ── Derived ──
   // Active salespeople — prefer real crm_users accounts, fall back to monthly sp list
+  // Users are included if:
+  //  - is_salesperson === true (explicitly flagged), OR
+  //  - is_salesperson is undefined (column missing or not yet set) AND their role is a sales-facing role
+  // Admins are only included if explicitly flagged is_salesperson = true.
   const act = useMemo(() => crmUsers.length > 0
-    ? crmUsers.filter((u) => u.active !== false && (u.role === 'salesperson' || u.role === 'ism' || u.role === 'gsm' || u.role === 'admin' || u.role === 'sales_finance_mgr'))
+    ? crmUsers.filter((u) => {
+        if (u.active === false) return false;
+        if (u.is_salesperson === true) return true;
+        if (u.is_salesperson === false) return false;
+        // Legacy fallback: if flag isn't set, default based on role (no admins)
+        return u.role === 'salesperson' || u.role === 'ism' || u.role === 'gsm' || u.role === 'sales_finance_mgr';
+      })
     : spList.filter((s) => s.active), [crmUsers, spList]);
+
+  // Reload crm_users (used after toggling is_salesperson from Manage Reps)
+  async function reloadCrmUsers() {
+    if (!storeId) return;
+    const users = await loadUsers(storeId);
+    setCrmUsers(users);
+  }
   const tot = useMemo(() => {
     const t = { ...Object.fromEntries(unitTypes.map((u) => [u, 0])), total: 0 };
     deals.forEach((d) => unitTypes.forEach((u) => { t[u] += d.units?.[u] || 0; }));
@@ -446,7 +463,7 @@ export default function App() {
               }}>{v.label}</button>
             ))}
           </div>
-          {mgrSub === 'goals' && <GoalsTab goals={goals} tot={tot} tTgt={tTgt} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} contests={contests} spList={spList} act={act} modal={modal} setModal={setModal} saveGoals={saveGoals} saveReps={saveReps} savePga={savePga} saveBe={saveBe} saveHL={saveHL} saveCT={saveCT} unitTypes={unitTypes} />}
+          {mgrSub === 'goals' && <GoalsTab goals={goals} tot={tot} tTgt={tTgt} pgaTiers={pgaTiers} beSpiffs={beSpiffs} hitList={hitList} contests={contests} spList={spList} act={act} modal={modal} setModal={setModal} saveGoals={saveGoals} saveReps={saveReps} savePga={savePga} saveBe={saveBe} saveHL={saveHL} saveCT={saveCT} unitTypes={unitTypes} crmUsers={crmUsers} storeId={storeId} saveCrmUser={async (u) => { await saveOneUser(u, false); }} reloadCrmUsers={reloadCrmUsers} />}
           {mgrSub === 'gsm' && <GSMDashTab month={month} year={year} deals={deals} act={act} currentUser={currentUser} googleReviews={googleReviews} saveGoogleReviews={saveGoogleReviews} gsmChecklist={gsmChecklist} saveGsmChecklist={saveGsmChecklist} fiKpis={fiKpis} saveFiKpis={saveFiKpis} gsmBonusConfig={gsmBonusConfig} saveGsmBonusConfig={saveGsmBonusConfig} />}
           {mgrSub === 'traffic' && <FloorLeadsTab month={month} year={year} deals={deals} act={act} spList={spList} floorDailyLeadCounts={floorDailyLeadCounts} floorBulkLeadCounts={floorBulkLeadCounts} yearlyDeals={yearlyDeals} yearlyMonthData={yearlyMonthData} saveFloorDLC={saveFloorDLC} saveFloorBLC={saveFloorBLC} />}
         </div>

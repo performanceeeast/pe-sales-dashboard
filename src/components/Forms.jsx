@@ -390,32 +390,72 @@ export function BeForm({ spiffs, onSave, onCancel }) {
 }
 
 /* ═══ Rep Management Form ═══ */
-export function RepForm({ reps, onSave, onCancel }) {
-  const [r, sR] = useState(JSON.parse(JSON.stringify(reps)));
-  const [nn, sN] = useState('');
-  function add() { if (nn.trim()) { sR([...r, { id: Date.now().toString(), name: nn.trim(), active: true }]); sN(''); } }
+// RepForm now lists all crm_users for the current store and lets the manager toggle
+// "Active Salesperson" per user. That flag (is_salesperson) controls whether the user
+// appears in salesperson dropdowns, leaderboards, deal entry, and rankings.
+// New users are still added in the Admin panel (this modal only toggles visibility).
+export function RepForm({ crmUsers, storeId, onSaveUser, onCancel, onClose }) {
+  const users = (crmUsers || []).filter((u) => u.store_id === storeId && u.active !== false);
+  // Determine current "is salesperson" state per user. If the field is undefined (legacy),
+  // default based on role.
+  const isSales = (u) => {
+    if (u.is_salesperson === true) return true;
+    if (u.is_salesperson === false) return false;
+    return u.role === 'salesperson' || u.role === 'ism' || u.role === 'gsm' || u.role === 'sales_finance_mgr';
+  };
+  const [saving, setSaving] = useState(null);
+
+  async function toggle(u) {
+    if (saving) return;
+    setSaving(u.id);
+    const next = !isSales(u);
+    await onSaveUser({ ...u, is_salesperson: next });
+    setSaving(null);
+  }
+
+  const ROLE_LABELS = {
+    admin: 'Admin', gsm: 'Sales Manager', finance: 'Finance', ism: 'Internet Sales',
+    salesperson: 'Salesperson', sales_finance_mgr: 'Sales/Finance Mgr',
+  };
+
   return (
     <div>
-      <div style={{ marginBottom: 14 }}>
-        {r.map((x) => (
-          <div key={x.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border-secondary)' }}>
-            <button onClick={() => sR(r.map((y) => y.id === x.id ? { ...y, active: !y.active } : y))} style={{
-              background: x.active ? '#dcfce7' : '#fef2f2', border: 'none', borderRadius: 3,
-              padding: '2px 10px', cursor: 'pointer', fontFamily: FM, fontSize: 10,
-              fontWeight: 700, color: x.active ? '#16a34a' : '#b91c1c',
-            }}>{x.active ? 'ACTIVE' : 'INACTIVE'}</button>
-            <span style={{ flex: 1, fontFamily: FH, fontSize: 13, fontWeight: 600 }}>{x.name}</span>
-            <button onClick={() => sR(r.filter((y) => y.id !== x.id))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>x</button>
-          </div>
-        ))}
+      <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '10px 14px', fontFamily: FM, fontSize: 10, color: '#2563eb', marginBottom: 14, lineHeight: 1.5 }}>
+        Toggle "Active Salesperson" on each user below to control who appears in dropdowns, leaderboards, and deal entry. Add or remove accounts in the Admin panel.
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        <input value={nn} onChange={(e) => sN(e.target.value)} style={{ ...inp, flex: 1 }} placeholder="New salesperson name" onKeyDown={(e) => e.key === 'Enter' && add()} />
-        <button onClick={add} style={b2}>ADD</button>
+      <div style={{ marginBottom: 14, maxHeight: 400, overflow: 'auto' }}>
+        {users.length === 0 && (
+          <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>
+            No users found for this store. Add them in the Admin panel first.
+          </div>
+        )}
+        {users.map((u) => {
+          const active = isSales(u);
+          const busy = saving === u.id;
+          return (
+            <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px', borderBottom: '1px solid var(--border-secondary)' }}>
+              <button
+                onClick={() => toggle(u)}
+                disabled={busy}
+                style={{
+                  background: active ? '#dcfce7' : '#fef2f2', border: 'none', borderRadius: 3,
+                  padding: '4px 12px', cursor: busy ? 'wait' : 'pointer', fontFamily: FM, fontSize: 9,
+                  fontWeight: 700, color: active ? '#16a34a' : '#b91c1c', minWidth: 90,
+                  opacity: busy ? 0.5 : 1,
+                }}
+              >{busy ? '...' : (active ? '✓ ACTIVE' : '✕ HIDDEN')}</button>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: FH, fontSize: 13, fontWeight: 700 }}>{u.name}</div>
+                <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>
+                  {ROLE_LABELS[u.role] || u.role}
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-        <button onClick={onCancel} style={b2}>CANCEL</button>
-        <button onClick={() => onSave(r)} style={b1}>SAVE</button>
+        <button onClick={onClose || onCancel} style={b1}>DONE</button>
       </div>
     </div>
   );

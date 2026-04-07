@@ -8,7 +8,7 @@ const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD } = s
 export default function GoalsTab({
   goals, tot, tTgt, pgaTiers, beSpiffs, hitList, contests, spList, act,
   modal, setModal, saveGoals, saveReps, savePga, saveBe, saveHL, saveCT,
-  unitTypes: propUnitTypes,
+  unitTypes: propUnitTypes, crmUsers, storeId, saveCrmUser, reloadCrmUsers,
 }) {
   const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   return (
@@ -119,7 +119,14 @@ export default function GoalsTab({
 
       {/* Modals */}
       <Modal open={modal === 'editGoals'} onClose={() => setModal(null)} title="Edit Monthly Goals"><GoalForm goals={goals} onSave={saveGoals} onCancel={() => setModal(null)} unitTypes={UNIT_TYPES} /></Modal>
-      <Modal open={modal === 'reps'} onClose={() => setModal(null)} title="Manage Salespeople"><RepForm reps={spList} onSave={saveReps} onCancel={() => setModal(null)} /></Modal>
+      <Modal open={modal === 'reps'} onClose={async () => { setModal(null); if (reloadCrmUsers) await reloadCrmUsers(); }} title="Manage Salespeople">
+        <RepForm
+          crmUsers={crmUsers}
+          storeId={storeId}
+          onSaveUser={async (user) => { if (saveCrmUser) await saveCrmUser(user); if (reloadCrmUsers) await reloadCrmUsers(); }}
+          onClose={async () => { setModal(null); if (reloadCrmUsers) await reloadCrmUsers(); }}
+        />
+      </Modal>
       <Modal open={modal === 'editPga'} onClose={() => setModal(null)} title="Edit Parts & Labor Flat Tiers"><PgaForm tiers={pgaTiers} onSave={savePga} onCancel={() => setModal(null)} /></Modal>
       <Modal open={modal === 'editBe'} onClose={() => setModal(null)} title="Edit Back End Spiffs"><BeForm spiffs={beSpiffs} onSave={saveBe} onCancel={() => setModal(null)} /></Modal>
       <Modal open={modal === 'addHit'} onClose={() => setModal(null)} title="Add Unit to Hit List"><HitForm onSave={(h) => { saveHL([...hitList, { ...h, id: Date.now().toString(), sold: false, soldBy: null, dealNumber: '' }]); setModal(null); }} onCancel={() => setModal(null)} /></Modal>
