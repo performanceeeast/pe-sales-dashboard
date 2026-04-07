@@ -9,7 +9,7 @@ const { card, cardHead: cH, input: inp, btn1: b1, th: TH, td: TD } = styles;
 export default function DealsTab({
   month, year, deals, spList, act, tot, pgaTiers,
   modal, setModal, addDeal, delDeal, updateDeal, currentUser,
-  unitTypes: propUnitTypes, backEndProducts, beSpiffs,
+  unitTypes: propUnitTypes, backEndProducts, beSpiffs, hitList,
 }) {
   const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   // Only show back-end products that have a spiff set in Manager > Goals & Spiffs
@@ -82,12 +82,12 @@ export default function DealsTab({
       <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginTop: 8 }}>Click any deal row to edit (own deals only for salespeople)</div>
 
       <Modal open={modal === 'addDeal'} onClose={() => setModal(null)} title="Log a New Deal" wide>
-        <DealForm spList={act} onSave={addDeal} onCancel={() => setModal(null)} pgaTiers={pgaTiers} unitTypes={UNIT_TYPES} backEndProducts={activeBackEndProducts} beSpiffs={beSpiffs} />
+        <DealForm spList={act} onSave={addDeal} onCancel={() => setModal(null)} pgaTiers={pgaTiers} unitTypes={UNIT_TYPES} backEndProducts={activeBackEndProducts} beSpiffs={beSpiffs} hitList={hitList} />
       </Modal>
 
       <Modal open={modal === 'editDeal' && editingDeal} onClose={() => { setEditingDeal(null); setModal(null); }} title="Edit Deal" wide>
         {editingDeal && (
-          <DealForm spList={act} onSave={handleSaveEdit} onCancel={() => { setEditingDeal(null); setModal(null); }} pgaTiers={pgaTiers} editDeal={editingDeal} unitTypes={UNIT_TYPES} backEndProducts={activeBackEndProducts} beSpiffs={beSpiffs} />
+          <DealForm spList={act} onSave={handleSaveEdit} onCancel={() => { setEditingDeal(null); setModal(null); }} pgaTiers={pgaTiers} editDeal={editingDeal} unitTypes={UNIT_TYPES} backEndProducts={activeBackEndProducts} beSpiffs={beSpiffs} hitList={hitList} />
         )}
       </Modal>
 

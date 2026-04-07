@@ -203,10 +203,58 @@ export default function App() {
     saveMonth(sid, yr, mo, data).catch((e) => console.error('Supabase save error:', e));
   }, []);
 
+  // Atomic multi-key save — updates several state slices and writes once
+  const setterMap = {
+    deals: setDeals, leads: setLeads, hitList: setHitList, contests: setContests,
+    goals: setGoals, sp: setSpList, pga: setPgaTiers, be: setBeSpiffs,
+  };
+  const updateAndSaveMulti = useCallback((updates) => {
+    Object.entries(updates).forEach(([k, v]) => { const fn = setterMap[k]; if (fn) fn(v); });
+    const data = { ...dataRef.current, ...updates };
+    const sid = saveStoreRef.current, yr = saveYearRef.current, mo = saveMonthRef.current;
+    const cacheKey = sid ? `peg-sales-${sid}-${yr}-${mo}` : `peg-sales-${yr}-${mo}`;
+    try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch (e) { console.error('localStorage save error:', e); }
+    saveMonth(sid, yr, mo, data).catch((e) => console.error('Supabase save error:', e));
+  }, []);
+
+  // Helper: apply hit list selection to a deal — marks selected items sold to this deal,
+  // and unmarks any items previously linked to this deal but no longer selected.
+  function applyHitListSelection(currentHitList, dealNumber, salesperson, selectedIds) {
+    const ids = selectedIds || [];
+    return currentHitList.map((h) => {
+      const wasLinked = h.sold && h.dealNumber === dealNumber && h.soldBy === salesperson;
+      const isSelected = ids.includes(h.id);
+      if (isSelected) return { ...h, sold: true, soldBy: salesperson, dealNumber };
+      if (wasLinked && !isSelected) return { ...h, sold: false, soldBy: '', dealNumber: '' };
+      return h;
+    });
+  }
+
   // ── Mutators ──
-  function addDeal(d) { const nd = [...deals, { ...d, id: Date.now().toString() }]; updateAndSave(setDeals, 'deals', nd); setModal(null); }
+  function addDeal(d) {
+    const { hitListIds, ...dealData } = d;
+    const newDeal = { ...dealData, id: Date.now().toString() };
+    const nd = [...deals, newDeal];
+    if (hitListIds && hitListIds.length > 0) {
+      const nh = applyHitListSelection(hitList, newDeal.dealNumber, newDeal.salesperson, hitListIds);
+      updateAndSaveMulti({ deals: nd, hitList: nh });
+    } else {
+      updateAndSave(setDeals, 'deals', nd);
+    }
+    setModal(null);
+  }
   function delDeal(id) { updateAndSave(setDeals, 'deals', deals.filter((d) => d.id !== id)); }
-  function updateDeal(id, updated) { updateAndSave(setDeals, 'deals', deals.map((d) => d.id === id ? { ...updated } : d)); }
+  function updateDeal(id, updated) {
+    const { hitListIds, ...dealData } = updated;
+    const nd = deals.map((d) => d.id === id ? { ...dealData } : d);
+    // Always recompute hit list if hitListIds is provided (even empty array means "deselect all")
+    if (hitListIds !== undefined) {
+      const nh = applyHitListSelection(hitList, dealData.dealNumber, dealData.salesperson, hitListIds);
+      updateAndSaveMulti({ deals: nd, hitList: nh });
+    } else {
+      updateAndSave(setDeals, 'deals', nd);
+    }
+  }
   function addLead(l) { const nl = [...leads, { ...l, id: Date.now().toString() }]; updateAndSave(setLeads, 'leads', nl); setModal(null); }
   function delLead(id) { updateAndSave(setLeads, 'leads', leads.filter((l) => l.id !== id)); }
   function updLead(id, f, v) { updateAndSave(setLeads, 'leads', leads.map((l) => l.id === id ? { ...l, [f]: v } : l)); }
@@ -354,7 +402,7 @@ export default function App() {
       {showAdmin && canManageUsers(currentUser) && <AdminPanel storeId={storeId} storeConfig={storeConfig} />}
 
       {/* HOME — Dashboard (preserved) */}
-      {!showAdmin && view === 'dashboard' && <DashboardTab month={month} year={year} goals={goals} tot={tot} tTgt={tTgt} tStr={tStr} ls={ls} floorTrafficStats={floorTrafficStats} yearlyMonthSales={yearlyMonthSales} ytdTotal={ytdTotal} yearlyRepPerf={yearlyRepPerf} notes={notes} saveNotes={saveNotes} meetingNotes={meetingNotes} saveMeetingNotes={saveMeetingNotes} deals={deals} currentUser={currentUser} act={act} updateDeal={updateDeal} unitTypes={unitTypes} setView={setView} setSalesSub={setSalesSub} setModal={setModal} pgaTiers={pgaTiers} yearlyDeals={yearlyDeals} floorDailyLeadCounts={floorDailyLeadCounts} />}
+      {!showAdmin && view === 'dashboard' && <DashboardTab month={month} year={year} goals={goals} tot={tot} tTgt={tTgt} tStr={tStr} ls={ls} floorTrafficStats={floorTrafficStats} yearlyMonthSales={yearlyMonthSales} ytdTotal={ytdTotal} yearlyRepPerf={yearlyRepPerf} notes={notes} saveNotes={saveNotes} meetingNotes={meetingNotes} saveMeetingNotes={saveMeetingNotes} deals={deals} currentUser={currentUser} act={act} updateDeal={updateDeal} unitTypes={unitTypes} setView={setView} setSalesSub={setSalesSub} setModal={setModal} pgaTiers={pgaTiers} yearlyDeals={yearlyDeals} floorDailyLeadCounts={floorDailyLeadCounts} contests={contests} saveCT={saveCT} />}
 
       {/* SALES — Deals + Leaderboard + History (consolidated) */}
       {!showAdmin && view === 'sales' && (
@@ -370,7 +418,7 @@ export default function App() {
               }}>{v.label}</button>
             ))}
           </div>
-          {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} beSpiffs={beSpiffs} />}
+          {salesSub === 'deals' && <DealsTab month={month} year={year} deals={deals} spList={spList} act={act} tot={tot} pgaTiers={pgaTiers} modal={modal} setModal={setModal} addDeal={addDeal} delDeal={delDeal} updateDeal={updateDeal} currentUser={currentUser} unitTypes={unitTypes} backEndProducts={backEndProducts} beSpiffs={beSpiffs} hitList={hitList} />}
           {salesSub === 'programs' && <PromosTab currentUser={currentUser} storeId={storeId} storeConfig={storeConfig} promoRecords={promoRecords} savePromoRecords={savePromoRecords} pricingRecords={pricingRecords} savePricingRecords={savePricingRecords} />}
           {/* History moved to own top-level tab */}
         </div>

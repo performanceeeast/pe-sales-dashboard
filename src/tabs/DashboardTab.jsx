@@ -15,14 +15,24 @@ export default function DashboardTab({
   deals, currentUser, act, updateDeal,
   unitTypes: propUnitTypes,
   setView, setSalesSub, setModal, pgaTiers, yearlyDeals,
-  floorDailyLeadCounts,
+  floorDailyLeadCounts, contests, saveCT,
 }) {
   const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
-  const [noteTitle, setNoteTitle] = useState('');
-  const [noteText, setNoteText] = useState('');
   const [mtgDate, setMtgDate] = useState(new Date().toISOString().split('T')[0]);
   const [mtgText, setMtgText] = useState('');
   const [dashSub, setDashSub] = useState('monthly');
+  const canManageContests = currentUser?.role === 'admin' || currentUser?.role === 'gsm' || currentUser?.role === 'sales_finance_mgr';
+  const toggleContestWinner = (contestId, repId) => {
+    if (!canManageContests || !saveCT) return;
+    const updated = (contests || []).map((c) => {
+      if (c.id !== contestId) return c;
+      const winners = (c.winners || []).slice();
+      const i = winners.indexOf(repId);
+      if (i >= 0) winners.splice(i, 1); else winners.push(repId);
+      return { ...c, winners };
+    });
+    saveCT(updated);
+  };
 
   const combinedLeads = (ls.total || 0) + (floorTrafficStats.total || 0);
   const combinedSold = (ls.sold || 0) + (floorTrafficStats.sold || 0);
@@ -74,38 +84,63 @@ export default function DashboardTab({
 
   return (
     <div>
-      {/* ── NOTES / BULLETIN BOARD ── */}
+      {/* ── ACTIVE CONTESTS / MEETING NOTES ── */}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 16 }}>
         <div style={{ ...card, flex: 1, minWidth: 300 }}>
           <div style={{ ...cH, background: '#fefce8', borderBottomColor: '#fde68a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: '#d97706' }}>{'\uD83D\uDCCC'} BULLETIN BOARD</span>
+            <span style={{ color: '#d97706' }}>{'\uD83C\uDFC6'} ACTIVE CONTESTS</span>
+            {canManageContests && <span style={{ fontFamily: FM, fontSize: 8, color: 'var(--text-muted)' }}>Manage in MGR &gt; Goals &amp; Spiffs</span>}
           </div>
           <div style={{ padding: 14 }}>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-              <input value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} style={{ ...inp, flex: 1, minWidth: 100 }} placeholder="Title" />
-              <input value={noteText} onChange={(e) => setNoteText(e.target.value)} style={{ ...inp, flex: 2, minWidth: 150 }} placeholder="Note..." onKeyDown={(e) => {
-                if (e.key === 'Enter' && noteText.trim()) {
-                  saveNotes([...notes, { id: Date.now().toString(), title: noteTitle.trim(), text: noteText.trim(), pinned: false, createdBy: currentUser?.name || '', createdAt: new Date().toISOString() }]);
-                  setNoteTitle(''); setNoteText('');
-                }
-              }} />
-              <button onClick={() => {
-                if (!noteText.trim()) return;
-                saveNotes([...notes, { id: Date.now().toString(), title: noteTitle.trim(), text: noteText.trim(), pinned: false, createdBy: currentUser?.name || '', createdAt: new Date().toISOString() }]);
-                setNoteTitle(''); setNoteText('');
-              }} style={{ ...b1, background: '#d97706', padding: '6px 12px', fontSize: 10 }}>PIN</button>
-            </div>
-            {notes.length === 0 && <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', padding: 14 }}>{'\uD83D\uDCCC'} No notes pinned yet</div>}
-            {notes.map((n) => (
-              <div key={n.id} style={{ background: '#fefce8', borderRadius: 6, padding: '8px 12px', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                <div style={{ flex: 1 }}>
-                  {n.title && <div style={{ fontFamily: FH, fontSize: 12, fontWeight: 700, marginBottom: 2 }}>{n.title}</div>}
-                  <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{n.text}</div>
-                  {n.createdBy && <div style={{ fontFamily: FM, fontSize: 8, color: '#d97706', marginTop: 3 }}>— {n.createdBy}</div>}
-                </div>
-                <button onClick={() => saveNotes(notes.filter((x) => x.id !== n.id))} style={{ background: 'none', border: 'none', color: '#d97706', cursor: 'pointer', fontSize: 12, flexShrink: 0 }}>{'\u2715'}</button>
+            {(!contests || contests.length === 0) && (
+              <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', padding: 18 }}>
+                {'\uD83C\uDFC6'} No active contests — set up in Manager &gt; Goals &amp; Spiffs
               </div>
-            ))}
+            )}
+            {(contests || []).map((c) => {
+              const winners = c.winners || [];
+              return (
+                <div key={c.id} style={{ background: '#fefce8', borderRadius: 6, padding: '10px 12px', marginBottom: 8, border: '1px solid #fde68a' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 4 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: FH, fontSize: 13, fontWeight: 700, color: '#92400e' }}>{c.name || 'Untitled Contest'}</div>
+                      {c.description && <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', marginTop: 2, lineHeight: 1.4 }}>{c.description}</div>}
+                    </div>
+                    <div style={{ fontFamily: FH, fontSize: 18, fontWeight: 700, color: '#d97706', flexShrink: 0 }}>${(c.prize || 0).toLocaleString()}</div>
+                  </div>
+                  <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed #fde68a' }}>
+                    <div style={{ fontFamily: FM, fontSize: 8, color: 'var(--text-muted)', letterSpacing: 1, marginBottom: 4 }}>WINNERS</div>
+                    {winners.length === 0 && !canManageContests && (
+                      <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', fontStyle: 'italic' }}>No winners yet</div>
+                    )}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {canManageContests
+                        ? (act || []).map((sp) => {
+                          const isWinner = winners.includes(sp.id);
+                          return (
+                            <button key={sp.id} onClick={() => toggleContestWinner(c.id, sp.id)} type="button" style={{
+                              padding: '3px 10px', borderRadius: 12, cursor: 'pointer',
+                              border: isWinner ? '1px solid #16a34a' : '1px solid var(--border-primary)',
+                              background: isWinner ? '#dcfce7' : 'var(--card-bg)',
+                              fontFamily: FM, fontSize: 9, fontWeight: 700,
+                              color: isWinner ? '#16a34a' : 'var(--text-muted)',
+                            }}>{isWinner ? '\u2713 ' : ''}{sp.name?.split(' ')[0]}</button>
+                          );
+                        })
+                        : winners.map((wid) => {
+                          const sp = (act || []).find((x) => x.id === wid);
+                          if (!sp) return null;
+                          return (
+                            <span key={wid} style={{ padding: '3px 10px', borderRadius: 12, background: '#dcfce7', border: '1px solid #16a34a', fontFamily: FM, fontSize: 9, fontWeight: 700, color: '#16a34a' }}>
+                              {'\u2713 '}{sp.name?.split(' ')[0]}
+                            </span>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
         <div style={{ ...card, flex: 1, minWidth: 300 }}>

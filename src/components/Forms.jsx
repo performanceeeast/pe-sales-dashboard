@@ -5,17 +5,31 @@ import { styles, FM, FH } from './SharedUI';
 const { input: inp, btn1: b1, btn2: b2, label: lbl } = styles;
 
 /* ═══ Deal Form (single page) ═══ */
-export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTypes: propUnitTypes, backEndProducts: propBEProducts, beSpiffs }) {
+export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTypes: propUnitTypes, backEndProducts: propBEProducts, beSpiffs, hitList }) {
   const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   const BACK_END_PRODUCTS = propBEProducts || DEFAULT_BE_PRODUCTS;
   const spiffMap = Object.fromEntries((beSpiffs || []).map(s => [s.product, s.amount]));
-  const [f, sF] = useState(editDeal ? { ...editDeal } : {
+  // In edit mode, pre-select any hit list items already linked to this deal
+  const initialHitListIds = editDeal
+    ? (hitList || []).filter(h => h.sold && h.soldBy === editDeal.salesperson && h.dealNumber === editDeal.dealNumber).map(h => h.id)
+    : [];
+  const [f, sF] = useState(editDeal ? { ...editDeal, hitListIds: initialHitListIds } : {
     date: new Date().toISOString().split('T')[0],
     customer: '', salesperson: '', dealNumber: '',
     units: Object.fromEntries(UNIT_TYPES.map(u => [u, 0])),
-    pgaAmount: 0, backEndProducts: [],
+    pgaAmount: 0, backEndProducts: [], hitListIds: [],
     starChecklist: Object.fromEntries(STAR_CHECKLIST.map(s => [s.id, false])),
     followUpDate: '', referralNames: '', referralDeclined: false, signoffs: {},
+  });
+  // Hit list items available to this deal: unsold items + items already linked to this deal in edit mode
+  const availableHits = (hitList || []).filter(h =>
+    !h.sold || (editDeal && h.soldBy === editDeal.salesperson && h.dealNumber === editDeal.dealNumber)
+  );
+  const toggleHit = (id) => sF((p) => {
+    const ids = (p.hitListIds || []).slice();
+    const i = ids.indexOf(id);
+    if (i >= 0) ids.splice(i, 1); else ids.push(id);
+    return { ...p, hitListIds: ids };
   });
 
   const u = (k, v) => sF((p) => ({ ...p, [k]: v }));
@@ -71,6 +85,39 @@ export function DealForm({ spList, onSave, onCancel, pgaTiers, editDeal, unitTyp
           </div>
         )}
       </div>
+
+      {/* Hit List Units */}
+      {availableHits.length > 0 && (
+        <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 6, padding: 14 }}>
+          <label style={{ ...lbl, color: '#7c3aed' }}>HIT LIST UNITS (AGED INVENTORY SPIFFS)</label>
+          <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginBottom: 8 }}>
+            Select any hit list units included in this deal — spiff auto-credits to the assigned salesperson.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+            {availableHits.map((h) => {
+              const sel = (f.hitListIds || []).includes(h.id);
+              return (
+                <button key={h.id} onClick={() => toggleHit(h.id)} type="button" style={{
+                  padding: '8px 12px', borderRadius: 4,
+                  border: sel ? '2px solid #7c3aed' : '1px solid var(--border-primary)',
+                  background: sel ? '#ede9fe' : 'var(--card-bg)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                  cursor: 'pointer', textAlign: 'left',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                    <span style={{ fontFamily: FM, fontSize: 11, fontWeight: 700, color: sel ? '#7c3aed' : 'var(--text-secondary)' }}>{sel ? '✓' : '○'}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: FM, fontSize: 10, fontWeight: 700, color: sel ? '#7c3aed' : 'var(--text-primary)' }}>{h.stockNumber || '—'} • {h.description || ''}</div>
+                      {h.daysOld > 0 && <div style={{ fontFamily: FM, fontSize: 8, color: 'var(--text-muted)', marginTop: 1 }}>{h.daysOld} days old</div>}
+                    </div>
+                  </div>
+                  <span style={{ fontFamily: FH, fontSize: 13, fontWeight: 700, color: '#16a34a', flexShrink: 0 }}>+${h.spiff || 0}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Back End Products */}
       <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: 14 }}>
