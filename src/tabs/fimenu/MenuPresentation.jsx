@@ -37,9 +37,9 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
     const logo = storeTheme?.logo || '/logo.png';
     const brand = storeTheme?.brand_primary || '#b91c1c';
 
-    const stepsHtml = steps.map((step, i) => {
-      const prevPayment = i === 0 ? baseSummary.basePayment : steps[i - 1].summary.withProductsPayment;
-      const increase = step.summary.withProductsPayment - prevPayment;
+    const stepsHtml = steps.map((step) => {
+      // Difference is measured from the BASE payment, not from the previous step
+      const increase = step.summary.withProductsPayment - baseSummary.basePayment;
       return `
         <div style="border:1px solid #e2e8f0;border-radius:8px;padding:16px;${step.recommended ? `border-color:${brand};border-width:2px;` : ''}margin-bottom:8px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -49,6 +49,7 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
             </div>
             <div style="text-align:right;">
               <div style="font-family:Oswald;font-size:28px;font-weight:700;color:#d97706;">+$${increase.toFixed(0)}/mo</div>
+              <div style="font-size:10px;color:#94a3b8;">over base payment</div>
               <div style="font-size:10px;color:#94a3b8;">$${step.summary.withProductsPayment.toFixed(2)}/mo total</div>
             </div>
           </div>
@@ -58,27 +59,18 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
       `;
     }).join('');
 
-    // Declination section
-    const allProductNames = [...new Set(steps.flatMap((s) => s.products.map((p) => p.name)))];
+    // Declination section — simple acknowledgement with customer signature
     const declinationHtml = `
-      <div style="margin-top:24px;padding-top:16px;border-top:2px solid #1e293b;">
-        <div style="font-family:Oswald;font-size:14px;font-weight:700;margin-bottom:8px;">OPTIONAL COVERAGE ACKNOWLEDGEMENT</div>
-        <div style="font-size:11px;color:#1e293b;line-height:1.6;margin-bottom:12px;">
-          I, the undersigned customer, acknowledge that the following optional protection products were offered and explained to me
-          in connection with my purchase. I understand that by declining any or all of these products, I may be responsible for costs
-          that would otherwise be covered by such protection. I have made my decision voluntarily and without pressure.
+      <div style="margin-top:24px;padding-top:16px;border-top:2px solid #1e293b;page-break-before:always;">
+        <div style="font-family:Oswald;font-size:14px;font-weight:700;margin-bottom:12px;">OPTIONAL COVERAGE DECLINATION</div>
+        <div style="font-size:11px;color:#1e293b;line-height:1.7;margin-bottom:12px;">
+          I/We understand that Performance East Inc. offered optional protection products and services during this purchase. These products are not required to purchase the unit or obtain financing, unless otherwise required by the lender.
         </div>
-        <div style="font-size:10px;color:#64748b;margin-bottom:8px;">PRODUCTS OFFERED:</div>
-        ${allProductNames.map((name) => `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:11px;">
-          <span style="display:inline-block;width:14px;height:14px;border:1px solid #94a3b8;border-radius:2px;"></span> ${name}
-          <span style="margin-left:auto;display:flex;gap:12px;">
-            <span style="font-size:9px;color:#64748b;">☐ ACCEPT</span>
-            <span style="font-size:9px;color:#64748b;">☐ DECLINE</span>
-          </span>
-        </div>`).join('')}
-        <div style="margin-top:20px;">
-          <div style="font-size:10px;font-weight:700;color:#1e293b;margin-bottom:4px;">SELECTED PACKAGE:</div>
-          <div style="border-bottom:1px solid #1e293b;height:24px;margin-bottom:16px;"></div>
+        <div style="font-size:11px;color:#1e293b;line-height:1.7;margin-bottom:12px;">
+          I/We have been given the opportunity to review these options and ask questions, and I/we have chosen to decline them at this time.
+        </div>
+        <div style="font-size:11px;color:#1e293b;line-height:1.7;margin-bottom:18px;">
+          I/We understand that by declining these products, I/we may be responsible for certain future repair costs, maintenance expenses, or negative equity balances that may have otherwise been covered.
         </div>
         <div style="display:flex;gap:40px;margin-top:16px;">
           <div style="flex:1;">
@@ -168,9 +160,9 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
       <div style={{ fontFamily: FH, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 2, marginBottom: 8 }}>STEPPED PAYMENT OPTIONS</div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-        {steps.map((step, i) => {
-          const prevPayment = i === 0 ? baseSummary.basePayment : steps[i - 1].summary.withProductsPayment;
-          const increase = step.summary.withProductsPayment - prevPayment;
+        {steps.map((step) => {
+          // Show the payment delta versus the BASE payment, not versus the previous tier
+          const increase = step.summary.withProductsPayment - baseSummary.basePayment;
 
           return (
             <div key={step.id} style={{
@@ -205,10 +197,13 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
                   </div>
                 </div>
 
-                {/* Right: Payment — step-up BIG, total smaller */}
+                {/* Right: Payment — amount OVER BASE big, total smaller */}
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   <div style={{ fontFamily: FH, fontSize: 32, fontWeight: 700, color: '#d97706', lineHeight: 1 }}>
                     +${increase.toFixed(0)}/mo
+                  </div>
+                  <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>
+                    over base payment
                   </div>
                   <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                     ${step.summary.withProductsPayment.toFixed(2)}/mo total
