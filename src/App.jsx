@@ -470,7 +470,7 @@ export default function App() {
       )}
 
       {/* F&I — Preserved exactly (already has internal sub-views) */}
-      {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} act={act} storeConfig={storeConfig} storeTheme={storeTheme} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />}
+      {!showAdmin && view === 'financeDash' && <FIDashTab month={month} year={year} deals={deals} currentUser={currentUser} act={act} storeConfig={storeConfig} storeTheme={storeTheme} storeId={storeId} fiKpis={fiKpis} saveFiKpis={saveFiKpis} fiDeals={fiDeals} saveFiDeals={saveFiDeals} fiTargets={fiTargets} saveFiTargets={saveFiTargets} yearlyMonthData={yearlyMonthData} backEndProducts={backEndProducts} fiMenus={fiMenus} saveFiMenus={saveFiMenus} fiMenuConfig={fiMenuConfig} saveFiMenuConfig={saveFiMenuConfig} />}
 
       {/* HISTORICAL DATA — own top-level tab, viewable by all, editable by admin/gsm only */}
       {!showAdmin && view === 'history' && <HistoryTab historyYear={historyYear} historyData={historyData} historyLoading={historyLoading} loadHistory={loadHistory} currentYear={now.getFullYear()} saveHistoryMonth={saveHistoryMonth} unitTypes={unitTypes} currentUser={currentUser} />}

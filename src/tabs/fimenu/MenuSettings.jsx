@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DEFAULT_LENDERS, DEFAULT_TERMS, PRODUCT_CATEGORIES, normalizeCategory } from '../../lib/fiMenuConstants';
 import { Modal, styles, FM, FH } from '../../components/SharedUI';
+import { readFiMenuConfigBackup } from '../../lib/storage';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD, label: lbl } = styles;
 
@@ -117,7 +118,7 @@ function PackageEditForm({ initial, onSave, onCancel, products }) {
   );
 }
 
-export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products, packages }) {
+export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products, packages, storeId }) {
   const [modal, setModal] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
   const [editPackage, setEditPackage] = useState(null);
@@ -289,6 +290,21 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
     lastSyncedProductsRef.current = JSON.stringify(remoteProducts);
   }
 
+  // Manually restore from the dedicated F&I backup. Used if live data has somehow
+  // been wiped but localStorage still has the user's hand-built catalog.
+  function recoverFromBackup() {
+    const backup = readFiMenuConfigBackup(storeId);
+    if (!backup) {
+      alert('No F&I backup found in this browser.');
+      return;
+    }
+    const backupProducts = (backup.products && backup.products.length) || 0;
+    const backupPackages = (backup.packages && backup.packages.length) || 0;
+    if (!confirm(`Found a backup with ${backupProducts} product(s) and ${backupPackages} package(s). Restore this to the current view? (You will still need to click SAVE CHANGES to persist it.)`)) return;
+    setLocalProducts(Array.isArray(backup.products) ? backup.products : []);
+    setLocalPackages(Array.isArray(backup.packages) ? backup.packages : []);
+  }
+
   // ── Package CRUD (operates on localPackages — staged until SAVE CHANGES clicked) ──
   function savePackage(pkg) {
     const newId = pkg.id || Date.now().toString();
@@ -327,6 +343,7 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
             {productsDirty && (
               <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '3px 8px', borderRadius: 3 }}>UNSAVED CHANGES</span>
             )}
+            <button onClick={recoverFromBackup} title="Restore catalog from browser backup" style={{ ...b2, padding: '4px 10px', fontSize: 9 }}>RECOVER</button>
             {productsDirty && (
               <button onClick={discardProductChanges} style={{ ...b2, padding: '4px 10px', fontSize: 9 }}>DISCARD</button>
             )}

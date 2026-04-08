@@ -15,6 +15,27 @@ function readLocalMonth(storeId, year, month) {
   } catch { return null; }
 }
 
+// Dedicated localStorage backup for the F&I menu config (products + packages + settings).
+// This is kept SEPARATE from the monthly_data blob so it can't be accidentally overwritten
+// by month switches or other data mutations. Keyed by storeId so each store has its own.
+export function saveFiMenuConfigBackup(storeId, config) {
+  if (!config) return;
+  try {
+    const key = `peg-fi-menu-config-${storeId || 'default'}`;
+    localStorage.setItem(key, JSON.stringify({ config, savedAt: new Date().toISOString() }));
+  } catch (e) { console.error('fi-menu-config backup write failed:', e); }
+}
+
+export function readFiMenuConfigBackup(storeId) {
+  try {
+    const key = `peg-fi-menu-config-${storeId || 'default'}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.config ? parsed.config : null;
+  } catch { return null; }
+}
+
 // Merge local data into Supabase data when Supabase is missing populated fields.
 // This protects against cases where a save to Supabase failed (e.g. unknown column)
 // but the data was still written to localStorage — we don't want to lose it.
@@ -29,21 +50,50 @@ function mergeLocalIntoRemote(remote, local) {
     if (l && (!r || l.length > r.length)) merged[k] = l;
   });
   // fiMenuConfig: prefer the version with more products
-  const rp = (remote.fiMenuConfig && Array.isArray(remote.fiMenuConfig.products)) ? remote.fiMenuConfig.products : null;
-  const lp = (local.fiMenuConfig && Array.isArray(local.fiMenuConfig.products)) ? local.fiMenuConfig.products : null;
-  if (lp && (!rp || lp.length > rp.length)) {
-    merged.fiMenuConfig = local.fiMenuConfig;
-  } else if (lp && rp && lp.length === rp.length && local.fiMenuConfig && remote.fiMenuConfig) {
-    // Same product count — prefer local if it has more keys in the config itself (e.g. per-category defaults)
-    const rKeys = Object.keys(remote.fiMenuConfig).length;
-    const lKeys = Object.keys(local.fiMenuConfig).length;
-    if (lKeys > rKeys) merged.fiMenuConfig = local.fiMenuConfig;
+  // fiMenuConfig: prefer whichever side has more populated data.
+  // The F&I product catalog is manually built by the user and represents
+  // significant work — we aggressively preserve it.
+  const rFi = remote.fiMenuConfig || {};
+  const lFi = local.fiMenuConfig || {};
+  const rProducts = Array.isArray(rFi.products) ? rFi.products : [];
+  const lProducts = Array.isArray(lFi.products) ? lFi.products : [];
+  const rPackages = Array.isArray(rFi.packages) ? rFi.packages : [];
+  const lPackages = Array.isArray(lFi.packages) ? lFi.packages : [];
+
+  // Deep merge: for each side, pick whichever has more items for products and packages
+  // independently, then merge the rest of the config keys (local wins ties).
+  const mergedFi = { ...rFi, ...lFi };
+  mergedFi.products = lProducts.length >= rProducts.length ? lProducts : rProducts;
+  mergedFi.packages = lPackages.length >= rPackages.length ? lPackages : rPackages;
+  // Only set fiMenuConfig if at least one side has data
+  if (Object.keys(mergedFi).length > 0) {
+    merged.fiMenuConfig = mergedFi;
   }
   return merged;
 }
 
 export async function loadMonth(storeId, year, month) {
   const local = readLocalMonth(storeId, year, month);
+  const fiBackup = readFiMenuConfigBackup(storeId);
+
+  // Helper: overlay the dedicated fi-menu-config backup if it has more products/packages
+  // than the merged data. This protects the F&I catalog from ever being silently wiped.
+  const applyFiBackup = (data) => {
+    if (!fiBackup) return data;
+    const current = (data && data.fiMenuConfig) || {};
+    const currentProducts = Array.isArray(current.products) ? current.products : [];
+    const currentPackages = Array.isArray(current.packages) ? current.packages : [];
+    const backupProducts = Array.isArray(fiBackup.products) ? fiBackup.products : [];
+    const backupPackages = Array.isArray(fiBackup.packages) ? fiBackup.packages : [];
+    if (backupProducts.length > currentProducts.length || backupPackages.length > currentPackages.length) {
+      const merged = { ...current, ...fiBackup };
+      merged.products = backupProducts.length >= currentProducts.length ? backupProducts : currentProducts;
+      merged.packages = backupPackages.length >= currentPackages.length ? backupPackages : currentPackages;
+      return { ...(data || {}), fiMenuConfig: merged };
+    }
+    return data;
+  };
+
   try {
     let q = supabase.from('monthly_data').select('*').eq('year', year).eq('month', month);
     if (storeId) q = q.eq('store_id', storeId);
@@ -51,12 +101,12 @@ export async function loadMonth(storeId, year, month) {
     if (error) throw error;
     if (data) {
       const remote = rowToMonthData(data);
-      return mergeLocalIntoRemote(remote, local);
+      return applyFiBackup(mergeLocalIntoRemote(remote, local));
     }
-    return local;
+    return applyFiBackup(local);
   } catch (e) {
     console.error('loadMonth error, falling back to localStorage:', e);
-    return local;
+    return applyFiBackup(local);
   }
 }
 
@@ -68,6 +118,13 @@ export async function saveMonth(storeId, year, month, data) {
   // Always write localStorage FIRST (synchronous, never lost)
   const cacheKey = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
   try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch (e) { console.error('localStorage write failed:', e); }
+
+  // ALSO write the F&I menu config to its dedicated backup if it has any products or packages.
+  // This creates a store-level backup that survives month switches and cache quirks.
+  const fi = data && data.fiMenuConfig;
+  if (fi && ((Array.isArray(fi.products) && fi.products.length > 0) || (Array.isArray(fi.packages) && fi.packages.length > 0))) {
+    saveFiMenuConfigBackup(storeId, fi);
+  }
 
   // Then write to Supabase (async, with retry for unknown columns)
   const row = monthDataToRow(year, month, data);

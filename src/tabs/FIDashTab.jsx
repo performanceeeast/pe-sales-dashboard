@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -7,6 +7,7 @@ import { MONTHS, BACK_END_PRODUCTS as DEFAULT_BE_PRODUCTS } from '../lib/constan
 import { Modal, ProgressBar, styles, FM, FH } from '../components/SharedUI';
 import { canEditFiMenuSettings, canViewFiMenuCost } from '../lib/auth';
 import { getProductsForStore, getPackagesForStore, DEFAULT_FI_PRODUCTS, DEFAULT_FI_PACKAGES } from '../lib/fiMenuConstants';
+import { readFiMenuConfigBackup } from '../lib/storage';
 import MenuBuilder from './fimenu/MenuBuilder';
 import MenuPresentation from './fimenu/MenuPresentation';
 import MenuSettings from './fimenu/MenuSettings';
@@ -23,7 +24,7 @@ const DEFAULT_FI_TARGETS = {
 };
 
 export default function FIDashTab({
-  month, year, deals, currentUser, act, storeConfig, storeTheme,
+  month, year, deals, currentUser, act, storeConfig, storeTheme, storeId,
   fiKpis, saveFiKpis, fiDeals, saveFiDeals,
   fiTargets, saveFiTargets, yearlyMonthData,
   backEndProducts: propBEProducts,
@@ -42,13 +43,27 @@ export default function FIDashTab({
   const fDeals = fiDeals || [];
   const canSettings = canEditFiMenuSettings(currentUser);
 
-  // Seed menu config when needed — re-checks whenever fiMenuConfig changes
+  // One-time seed guarded by a ref and the dedicated F&I backup. Only fires when
+  // there's genuinely no data anywhere — protects manually-built catalogs from
+  // being overwritten by a stray seed firing during a load race.
+  const seedAttemptedRef = useRef(false);
   useEffect(() => {
-    if (saveFiMenuConfig && fiMenuConfig && !fiMenuConfig.products && !fiMenuConfig.packages) {
-      const seedProducts = getProductsForStore(storeConfig, DEFAULT_FI_PRODUCTS);
-      const seedPackages = getPackagesForStore(storeConfig, seedProducts, DEFAULT_FI_PACKAGES);
-      saveFiMenuConfig({ ...fiMenuConfig, products: seedProducts, packages: seedPackages });
+    if (seedAttemptedRef.current) return;
+    if (!saveFiMenuConfig || !fiMenuConfig) return;
+    if (fiMenuConfig.products && fiMenuConfig.products.length > 0) return;
+    if (fiMenuConfig.packages && fiMenuConfig.packages.length > 0) return;
+    // Check the dedicated F&I backup before seeding — the backup may have the user's data
+    const backup = readFiMenuConfigBackup(storeId);
+    if (backup && ((backup.products && backup.products.length > 0) || (backup.packages && backup.packages.length > 0))) {
+      // User has a backup — restore from it instead of seeding defaults
+      seedAttemptedRef.current = true;
+      saveFiMenuConfig({ ...fiMenuConfig, ...backup });
+      return;
     }
+    seedAttemptedRef.current = true;
+    const seedProducts = getProductsForStore(storeConfig, DEFAULT_FI_PRODUCTS);
+    const seedPackages = getPackagesForStore(storeConfig, seedProducts, DEFAULT_FI_PACKAGES);
+    saveFiMenuConfig({ ...fiMenuConfig, products: seedProducts, packages: seedPackages });
   }, [fiMenuConfig?.products, fiMenuConfig?.packages, storeConfig]);
 
   const products = fiMenuConfig?.products || getProductsForStore(storeConfig, DEFAULT_FI_PRODUCTS);
@@ -373,6 +388,7 @@ export default function FIDashTab({
           saveFiMenuConfig={saveFiMenuConfig}
           products={products}
           packages={packages}
+          storeId={storeId}
         />
       )}
     </div>
