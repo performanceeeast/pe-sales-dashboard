@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { DEFAULT_LENDERS, DEFAULT_TERMS, createEmptyMenu, getCategoryForUnitType, getDefaultsForCategory, normalizeCategory } from '../../lib/fiMenuConstants';
+import { DEFAULT_LENDERS, DEFAULT_TERMS, createEmptyMenu, getCategoryForUnitType, getDefaultsForCategory, normalizeCategory, PRODUCT_CATEGORIES } from '../../lib/fiMenuConstants';
 import { calcDealSummary } from '../../lib/fiMenuCalc';
 import { canViewFiMenuCost } from '../../lib/auth';
 import { StatCard, styles, FM, FH } from '../../components/SharedUI';
@@ -116,11 +116,24 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
                 const newType = e.target.value;
                 const cat = getCategoryForUnitType(newType);
                 const defs = getDefaultsForCategory(config, cat);
-                // Auto-populate doc fee and tax rate from category defaults
-                sF((prev) => ({ ...prev, unitType: newType, docFee: defs.docFee, taxRate: defs.taxRate }));
+                // Auto-populate doc fee, tax rate, AND product category from unit type
+                sF((prev) => ({ ...prev, unitType: newType, productCategory: cat, docFee: defs.docFee, taxRate: defs.taxRate }));
               }} style={inp}>
                 <option value="">— Select —</option>
                 {unitTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div><label style={lbl}>PRODUCT CATEGORY</label>
+              <select
+                value={normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType))}
+                onChange={(e) => {
+                  const newCat = e.target.value;
+                  const defs = getDefaultsForCategory(config, newCat);
+                  sF((prev) => ({ ...prev, productCategory: newCat, docFee: defs.docFee, taxRate: defs.taxRate }));
+                }}
+                style={inp}
+              >
+                {PRODUCT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
             </div>
             <div><label style={lbl}>NEW / USED</label>
@@ -129,9 +142,9 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
               </select>
             </div>
             <div><label style={lbl}>YEAR</label><input type="number" value={f.year || ''} onChange={(e) => u('year', parseInt(e.target.value) || 0)} style={inp} /></div>
-            <div><label style={lbl}>MAKE</label><input value={f.make} onChange={(e) => u('make', e.target.value)} style={inp} placeholder="Polaris, Yamaha..." /></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: 10 }}>
+            <div><label style={lbl}>MAKE</label><input value={f.make} onChange={(e) => u('make', e.target.value)} style={inp} placeholder="Polaris, Yamaha..." /></div>
             <div><label style={lbl}>MODEL</label><input value={f.model} onChange={(e) => u('model', e.target.value)} style={inp} placeholder="General XP 1000, F250..." /></div>
             <div><label style={lbl}>VIN / STOCK #</label><input value={f.vin} onChange={(e) => u('vin', e.target.value)} style={inp} /></div>
           </div>
@@ -180,18 +193,19 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
         {showCost && <StatCard label="F&I GROSS" value={'$' + summary.productsGross.toLocaleString()} accent="#16a34a" />}
       </div>
 
-      {/* ── PACKAGE QUICK SELECT (filtered by unit type category) ── */}
+      {/* ── PACKAGE QUICK SELECT (filtered by explicit product category) ── */}
       <div style={card}>
         <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>QUICK PACKAGE SELECT</span>
-          {f.unitType && <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Filtered by: {f.unitType}</span>}
+          {(f.productCategory || f.unitType) && (() => {
+            const cat = PRODUCT_CATEGORIES.find((c) => c.id === normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType)));
+            return <span style={{ fontFamily: FM, fontSize: 9, color: cat?.color || 'var(--text-muted)' }}>Category: {cat?.label || '—'}</span>;
+          })()}
         </div>
         <div style={{ padding: 14, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {(() => {
-            const activeCat = getCategoryForUnitType(f.unitType);
+            const activeCat = normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType));
             return packages.filter((pkg) => {
-              // No category = universal (shows everywhere). If unit type is unset, show all.
-              if (!f.unitType) return true;
               const pkgCat = normalizeCategory(pkg.category);
               return pkgCat === 'universal' || pkgCat === activeCat;
             });
@@ -216,8 +230,8 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
         </div>
       </div>
 
-      {/* ── OUTBOARD WARRANTY SELECTOR — Marine units only ── */}
-      {getCategoryForUnitType(f.unitType) === 'marine' && (
+      {/* ── OUTBOARD WARRANTY SELECTOR — Marine category only ── */}
+      {(normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType))) === 'marine' && (
       <div style={card}>
         <div style={{ ...cH, background: '#eff6ff', borderBottomColor: '#bfdbfe' }}>
           <span style={{ color: '#2563eb' }}>OUTBOARD EXTENDED WARRANTY</span>
@@ -304,22 +318,24 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
       </div>
       )}
 
-      {/* ── PRODUCT SELECTION — filtered by unit type category ── */}
+      {/* ── PRODUCT SELECTION — filtered by explicit product category ── */}
       <div style={card}>
         <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <span>F&I PRODUCTS ({f.selectedProducts.length} selected)</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {f.unitType && <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Filtered by: {f.unitType}</span>}
+            {(f.productCategory || f.unitType) && (() => {
+              const cat = PRODUCT_CATEGORIES.find((c) => c.id === normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType)));
+              return <span style={{ fontFamily: FM, fontSize: 9, color: cat?.color || 'var(--text-muted)' }}>Category: {cat?.label || '—'}</span>;
+            })()}
             {showCost && <span style={{ fontFamily: FM, fontSize: 10, color: '#16a34a', fontWeight: 700 }}>GROSS: ${summary.productsGross.toLocaleString()}</span>}
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {(() => {
-            // Filter products by the selected unit type's category.
-            // Universal products always show. If no unit type selected yet, show all.
-            const activeCat = getCategoryForUnitType(f.unitType);
+            // Filter products by the explicit product category (override of unit-type-derived).
+            // Universal products always show.
+            const activeCat = normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType));
             return products.filter((p) => {
-              if (!f.unitType) return true;
               const pCat = normalizeCategory(p.category);
               return pCat === 'universal' || pCat === activeCat;
             });

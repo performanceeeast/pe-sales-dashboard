@@ -182,6 +182,7 @@ export function createEmptyMenu(currentUser, storeConfig) {
     salesperson: '', financeManager: currentUser?.name || '', dealNumber: '',
     // Unit
     unitType: (storeConfig?.unit_types || [])[0] || '', unitCategory: '',
+    productCategory: '', // explicit catalog category (universal/offroad/marine/pwc_jetboat), overrides unit-type-derived
     make: '', model: '', year: new Date().getFullYear(), vin: '', newUsed: 'new',
     // Pricing
     salePrice: 0, accessories: 0, freightPrep: 0, docFee: 299,
