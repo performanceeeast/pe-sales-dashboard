@@ -6,42 +6,103 @@ import { supabase } from './supabaseClient';
 
 // ── Monthly Data (goals, KPIs, checklists, etc.) ──
 
+function readLocalMonth(storeId, year, month) {
+  try {
+    const key = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
+    let raw = localStorage.getItem(key);
+    if (!raw && storeId) raw = localStorage.getItem(`peg-sales-${year}-${month}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+// Merge local data into Supabase data when Supabase is missing populated fields.
+// This protects against cases where a save to Supabase failed (e.g. unknown column)
+// but the data was still written to localStorage — we don't want to lose it.
+function mergeLocalIntoRemote(remote, local) {
+  if (!local) return remote;
+  if (!remote) return local;
+  const merged = { ...remote };
+  const keys = ['deals', 'leads', 'floorLeads', 'hitList', 'contests', 'notes', 'meetingNotes', 'fiMenus', 'fiDeals', 'promoRecords', 'pricingRecords', 'inventoryItems'];
+  keys.forEach((k) => {
+    const r = Array.isArray(remote[k]) ? remote[k] : null;
+    const l = Array.isArray(local[k]) ? local[k] : null;
+    if (l && (!r || l.length > r.length)) merged[k] = l;
+  });
+  // fiMenuConfig: prefer the version with more products
+  const rp = (remote.fiMenuConfig && Array.isArray(remote.fiMenuConfig.products)) ? remote.fiMenuConfig.products : null;
+  const lp = (local.fiMenuConfig && Array.isArray(local.fiMenuConfig.products)) ? local.fiMenuConfig.products : null;
+  if (lp && (!rp || lp.length > rp.length)) {
+    merged.fiMenuConfig = local.fiMenuConfig;
+  } else if (lp && rp && lp.length === rp.length && local.fiMenuConfig && remote.fiMenuConfig) {
+    // Same product count — prefer local if it has more keys in the config itself (e.g. per-category defaults)
+    const rKeys = Object.keys(remote.fiMenuConfig).length;
+    const lKeys = Object.keys(local.fiMenuConfig).length;
+    if (lKeys > rKeys) merged.fiMenuConfig = local.fiMenuConfig;
+  }
+  return merged;
+}
+
 export async function loadMonth(storeId, year, month) {
+  const local = readLocalMonth(storeId, year, month);
   try {
     let q = supabase.from('monthly_data').select('*').eq('year', year).eq('month', month);
     if (storeId) q = q.eq('store_id', storeId);
     const { data, error } = await q.maybeSingle();
     if (error) throw error;
-    if (data) return rowToMonthData(data);
-    return null;
+    if (data) {
+      const remote = rowToMonthData(data);
+      return mergeLocalIntoRemote(remote, local);
+    }
+    return local;
   } catch (e) {
     console.error('loadMonth error, falling back to localStorage:', e);
-    try {
-      const key = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
-      const raw = localStorage.getItem(key);
-      // Also try legacy key without storeId
-      if (!raw && storeId) {
-        const legacyRaw = localStorage.getItem(`peg-sales-${year}-${month}`);
-        return legacyRaw ? JSON.parse(legacyRaw) : null;
-      }
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
+    return local;
   }
 }
+
+// List of fields that should be safe in newer schemas but may be missing in older ones.
+// If an upsert fails with an unknown-column error, we strip these and retry.
+const OPTIONAL_COLUMNS = ['deals', 'fi_menu_config', 'fi_menus', 'promo_records', 'pricing_records', 'inventory_items', 'gsm_bonus_config', 'history_counts'];
 
 export async function saveMonth(storeId, year, month, data) {
   // Always write localStorage FIRST (synchronous, never lost)
   const cacheKey = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
   try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch (e) { console.error('localStorage write failed:', e); }
 
-  // Then write to Supabase (async)
+  // Then write to Supabase (async, with retry for unknown columns)
   const row = monthDataToRow(year, month, data);
   if (storeId) row.store_id = storeId;
-  try {
+  const tryUpsert = async (r) => {
     const { error } = await supabase
       .from('monthly_data')
-      .upsert(row, { onConflict: storeId ? 'store_id,year,month' : 'year,month' });
-    if (error) throw error;
+      .upsert(r, { onConflict: storeId ? 'store_id,year,month' : 'year,month' });
+    return error;
+  };
+  try {
+    let err = await tryUpsert(row);
+    // If Supabase rejects an unknown column, strip known-optional columns one at a time and retry
+    let attempts = 0;
+    while (err && attempts < OPTIONAL_COLUMNS.length) {
+      const msg = (err.message || '').toLowerCase();
+      if (!msg.includes('column') && !msg.includes('schema') && !msg.includes('does not exist')) break;
+      const stripped = { ...row };
+      // Remove any column mentioned by name in the error
+      let removedSomething = false;
+      for (const col of OPTIONAL_COLUMNS) {
+        if (msg.includes(col) && stripped[col] !== undefined) {
+          delete stripped[col];
+          removedSomething = true;
+        }
+      }
+      if (!removedSomething) break;
+      // Mutate row for next iteration so we don't re-add stripped fields
+      Object.keys(row).forEach((k) => { if (stripped[k] === undefined) delete row[k]; });
+      err = await tryUpsert(row);
+      attempts++;
+    }
+    if (err) {
+      console.error('saveMonth Supabase error (data safe in localStorage):', err);
+    }
   } catch (e) {
     console.error('saveMonth Supabase error (data safe in localStorage):', e);
   }
@@ -448,7 +509,6 @@ function rowToMonthData(row) {
 function monthDataToRow(year, month, data) {
   return {
     year, month,
-    deals: data.deals || [],
     goals: data.goals || {},
     salespeople: data.sp || data.salespeople || [],
     pga_tiers: data.pga || data.pga_tiers || [],
