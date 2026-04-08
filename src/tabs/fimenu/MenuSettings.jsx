@@ -118,7 +118,7 @@ function PackageEditForm({ initial, onSave, onCancel, products }) {
   );
 }
 
-export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products, packages, storeId }) {
+export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products, packages, storeId, isAdmin }) {
   const [modal, setModal] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
   const [editPackage, setEditPackage] = useState(null);
@@ -368,8 +368,12 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
             {productsDirty && (
               <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '3px 8px', borderRadius: 3 }}>UNSAVED CHANGES</span>
             )}
-            <button onClick={runDeepScan} disabled={deepScanLoading} title="Scan all localStorage and Supabase for F&I catalog data" style={{ ...b2, padding: '4px 10px', fontSize: 9, background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>{deepScanLoading ? 'SCANNING...' : 'DEEP RECOVER'}</button>
-            <button onClick={recoverFromBackup} title="Restore catalog from browser backup" style={{ ...b2, padding: '4px 10px', fontSize: 9 }}>RECOVER</button>
+            {isAdmin && (
+              <button onClick={runDeepScan} disabled={deepScanLoading} title="Admin only — scan all localStorage and Supabase for F&I catalog data" style={{ ...b2, padding: '4px 10px', fontSize: 9, background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>{deepScanLoading ? 'SCANNING...' : 'DEEP RECOVER'}</button>
+            )}
+            {isAdmin && (
+              <button onClick={recoverFromBackup} title="Admin only — restore catalog from browser backup" style={{ ...b2, padding: '4px 10px', fontSize: 9 }}>RECOVER</button>
+            )}
             {productsDirty && (
               <button onClick={discardProductChanges} style={{ ...b2, padding: '4px 10px', fontSize: 9 }}>DISCARD</button>
             )}

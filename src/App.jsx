@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MONTHS, UNIT_TYPES, UNIT_COLORS, DEFAULT_SALESPEOPLE, DEFAULT_GOALS, DEFAULT_PGA_TIERS, DEFAULT_BE_SPIFFS } from './lib/constants';
-import { loadMonth, saveMonth, loadYear, loadUsers, saveOneUser } from './lib/storage';
+import { loadMonth, saveMonth, loadYear, loadUsers, saveOneUser, loadLatestFiMenuConfigForStore, saveFiMenuConfigBackup } from './lib/storage';
 import { getSpUnits, getRepSpiffs } from './lib/calculations';
 import { canSeeTab, canManageUsers, ROLES } from './lib/auth';
 import { StatCard, TabTransition, styles, FM, FH, FB } from './components/SharedUI';
@@ -136,7 +136,19 @@ export default function App() {
         setFiDeals(data.fiDeals || []);
         setFiTargets(data.fiTargets || {});
         setFiMenus(data.fiMenus || []);
-        setFiMenuConfig(data.fiMenuConfig || {});
+        // Store-level F&I catalog: if this month's config is empty but the store has
+        // a catalog saved on another month (Supabase) or in local backup, use that.
+        let fiCfg = data.fiMenuConfig || {};
+        const fiHasData = (fiCfg.products && fiCfg.products.length > 0) || (fiCfg.packages && fiCfg.packages.length > 0);
+        if (!fiHasData) {
+          const latestForStore = await loadLatestFiMenuConfigForStore(storeId);
+          if (latestForStore && ((latestForStore.products && latestForStore.products.length > 0) || (latestForStore.packages && latestForStore.packages.length > 0))) {
+            fiCfg = latestForStore;
+            // Also update the dedicated local backup so subsequent loads are fast
+            saveFiMenuConfigBackup(storeId, latestForStore);
+          }
+        }
+        setFiMenuConfig(fiCfg);
         setPromoRecords(data.promoRecords || []);
         setPricingRecords(data.pricingRecords || []);
         setInventoryItems(data.inventoryItems || []);
@@ -148,7 +160,15 @@ export default function App() {
         setDailyLeadCounts([]); setBulkLeadCounts([]); setFloorDailyLeadCounts([]); setFloorBulkLeadCounts([]);
         setNotes([]); setMeetingNotes([]); setGoogleReviews({}); setGsmChecklist({}); setFiKpis({}); setFiChecklist({}); setFiDeals([]); setFiTargets({}); setGsmBonusConfig({});
         setPromos([]); setPriceList([]);
-        setFiMenus([]); setFiMenuConfig({});
+        setFiMenus([]);
+        // Even with no monthly row, still try to restore the store-level F&I catalog
+        const latestForStore = await loadLatestFiMenuConfigForStore(storeId);
+        if (latestForStore && ((latestForStore.products && latestForStore.products.length > 0) || (latestForStore.packages && latestForStore.packages.length > 0))) {
+          setFiMenuConfig(latestForStore);
+          saveFiMenuConfigBackup(storeId, latestForStore);
+        } else {
+          setFiMenuConfig({});
+        }
         setPromoRecords([]); setPricingRecords([]);
         setInventoryItems([]);
       }

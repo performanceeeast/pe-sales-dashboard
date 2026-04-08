@@ -389,6 +389,7 @@ export default function FIDashTab({
           products={products}
           packages={packages}
           storeId={storeId}
+          isAdmin={isAdmin}
         />
       )}
     </div>

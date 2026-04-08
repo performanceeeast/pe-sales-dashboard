@@ -141,26 +141,49 @@ function mergeLocalIntoRemote(remote, local) {
   return merged;
 }
 
+// Load the most populated fi_menu_config for a store across all months in Supabase.
+// Provides store-level F&I catalog persistence across browsers.
+export async function loadLatestFiMenuConfigForStore(storeId) {
+  try {
+    let q = supabase.from('monthly_data').select('year,month,fi_menu_config');
+    if (storeId) q = q.eq('store_id', storeId);
+    const { data, error } = await q;
+    if (error || !data) return null;
+    let best = null;
+    let bestScore = -1;
+    data.forEach((row) => {
+      const fi = row.fi_menu_config;
+      if (!fi) return;
+      const prods = Array.isArray(fi.products) ? fi.products.length : 0;
+      const pkgs = Array.isArray(fi.packages) ? fi.packages.length : 0;
+      const score = prods * 10 + pkgs;
+      if (score > bestScore) {
+        bestScore = score;
+        best = fi;
+      }
+    });
+    return best;
+  } catch (e) {
+    console.error('loadLatestFiMenuConfigForStore error:', e);
+    return null;
+  }
+}
+
 export async function loadMonth(storeId, year, month) {
   const local = readLocalMonth(storeId, year, month);
   const fiBackup = readFiMenuConfigBackup(storeId);
 
-  // Helper: overlay the dedicated fi-menu-config backup if it has more products/packages
-  // than the merged data. This protects the F&I catalog from ever being silently wiped.
+  // The F&I menu config is STORE-LEVEL (not per-month). Each store has its own catalog
+  // that persists across all months. The dedicated store-keyed backup is the authoritative
+  // source for fiMenuConfig whenever it has any data. This also ensures each store's
+  // catalog is fully independent from other stores (backup keys include storeId).
   const applyFiBackup = (data) => {
     if (!fiBackup) return data;
-    const current = (data && data.fiMenuConfig) || {};
-    const currentProducts = Array.isArray(current.products) ? current.products : [];
-    const currentPackages = Array.isArray(current.packages) ? current.packages : [];
-    const backupProducts = Array.isArray(fiBackup.products) ? fiBackup.products : [];
-    const backupPackages = Array.isArray(fiBackup.packages) ? fiBackup.packages : [];
-    if (backupProducts.length > currentProducts.length || backupPackages.length > currentPackages.length) {
-      const merged = { ...current, ...fiBackup };
-      merged.products = backupProducts.length >= currentProducts.length ? backupProducts : currentProducts;
-      merged.packages = backupPackages.length >= currentPackages.length ? backupPackages : currentPackages;
-      return { ...(data || {}), fiMenuConfig: merged };
-    }
-    return data;
+    const hasBackupData = (Array.isArray(fiBackup.products) && fiBackup.products.length > 0)
+      || (Array.isArray(fiBackup.packages) && fiBackup.packages.length > 0);
+    if (!hasBackupData) return data;
+    // Backup is authoritative for this store's F&I config
+    return { ...(data || {}), fiMenuConfig: fiBackup };
   };
 
   try {
