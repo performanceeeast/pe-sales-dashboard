@@ -4,6 +4,119 @@ import { Modal, styles, FM, FH } from '../../components/SharedUI';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD, label: lbl } = styles;
 
+// ═══════════════════════════════════════════════════════════════════
+// Isolated product edit form. Holds its own state so parent re-renders
+// NEVER disrupt what the user is typing. Only the initial value is
+// passed in via props; everything else lives inside this component.
+// ═══════════════════════════════════════════════════════════════════
+function ProductEditForm({ initial, onSave, onCancel }) {
+  const [f, setF] = useState(() => ({
+    id: '', name: '', description: '', category: 'universal',
+    retailPrice: 0, cost: 0, term: '', provider: '', contractCode: '',
+    taxable: false, financeable: true, disclaimer: '',
+    ...initial,
+  }));
+  const u = (k, v) => setF((prev) => ({ ...prev, [k]: v }));
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div><label style={lbl}>PRODUCT NAME</label><input value={f.name} onChange={(e) => u('name', e.target.value)} style={inp} /></div>
+      <div><label style={lbl}>DESCRIPTION</label><textarea value={f.description || ''} onChange={(e) => u('description', e.target.value)} style={{ ...inp, minHeight: 50, resize: 'vertical' }} /></div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+        <div><label style={lbl}>RETAIL PRICE ($)</label><input type="number" value={f.retailPrice || ''} onChange={(e) => u('retailPrice', parseInt(e.target.value) || 0)} style={inp} /></div>
+        <div><label style={lbl}>COST ($)</label><input type="number" value={f.cost || ''} onChange={(e) => u('cost', parseInt(e.target.value) || 0)} style={inp} /></div>
+        <div><label style={lbl}>CATEGORY</label>
+          <select value={normalizeCategory(f.category)} onChange={(e) => u('category', e.target.value)} style={inp}>
+            {PRODUCT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+        <div><label style={lbl}>PROVIDER</label><input value={f.provider || ''} onChange={(e) => u('provider', e.target.value)} style={inp} /></div>
+        <div><label style={lbl}>TERM</label><input value={f.term || ''} onChange={(e) => u('term', e.target.value)} style={inp} placeholder="36 mo" /></div>
+        <div><label style={lbl}>CONTRACT CODE</label><input value={f.contractCode || ''} onChange={(e) => u('contractCode', e.target.value)} style={inp} /></div>
+      </div>
+      <div style={{ display: 'flex', gap: 16 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={f.taxable || false} onChange={(e) => u('taxable', e.target.checked)} /> Taxable
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+          <input type="checkbox" checked={f.financeable !== false} onChange={(e) => u('financeable', e.target.checked)} /> Financeable
+        </label>
+      </div>
+      <div><label style={lbl}>DISCLAIMER</label><textarea value={f.disclaimer || ''} onChange={(e) => u('disclaimer', e.target.value)} style={{ ...inp, minHeight: 40, resize: 'vertical' }} /></div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button onClick={onCancel} style={b2}>CANCEL</button>
+        <button onClick={() => onSave(f)} style={b1}>{f.id ? 'UPDATE' : 'ADD'} PRODUCT</button>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Isolated package edit form. Same pattern — internal state only.
+// ═══════════════════════════════════════════════════════════════════
+function PackageEditForm({ initial, onSave, onCancel, products }) {
+  const [f, setF] = useState(() => ({
+    id: '', name: '', description: '', category: 'universal',
+    products: [], color: '#6b7280', displayOrder: 1, recommended: false,
+    ...initial,
+  }));
+  const u = (k, v) => setF((prev) => ({ ...prev, [k]: v }));
+  const toggleProduct = (pid) => setF((prev) => {
+    const cur = prev.products || [];
+    const next = cur.includes(pid) ? cur.filter((x) => x !== pid) : [...cur, pid];
+    return { ...prev, products: next };
+  });
+  const pkgCat = normalizeCategory(f.category);
+  const filteredProducts = (products || []).filter((p) => {
+    const pCat = normalizeCategory(p.category);
+    return pCat === 'universal' || pCat === pkgCat;
+  });
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div><label style={lbl}>PACKAGE NAME</label><input value={f.name} onChange={(e) => u('name', e.target.value)} style={inp} /></div>
+      <div><label style={lbl}>DESCRIPTION</label><input value={f.description || ''} onChange={(e) => u('description', e.target.value)} style={inp} /></div>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10 }}>
+        <div><label style={lbl}>CATEGORY</label>
+          <select value={pkgCat} onChange={(e) => u('category', e.target.value)} style={inp}>
+            {PRODUCT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+          </select>
+        </div>
+        <div><label style={lbl}>DISPLAY ORDER</label><input type="number" value={f.displayOrder || ''} onChange={(e) => u('displayOrder', parseInt(e.target.value) || 0)} style={inp} /></div>
+        <div><label style={lbl}>COLOR</label><input type="color" value={f.color || '#6b7280'} onChange={(e) => u('color', e.target.value)} style={{ ...inp, padding: 4, height: 36 }} /></div>
+      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer' }}>
+        <input type="checkbox" checked={f.recommended || false} onChange={(e) => u('recommended', e.target.checked)} /> Mark as Recommended
+      </label>
+      <div>
+        <label style={lbl}>INCLUDED PRODUCTS</label>
+        <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginBottom: 6 }}>
+          Showing products matching the selected category (plus Universal).
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+          {filteredProducts.map((p) => {
+            const included = (f.products || []).includes(p.id);
+            return (
+              <label key={p.id} onClick={() => toggleProduct(p.id)} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 4, cursor: 'pointer',
+                background: included ? '#f0fdf4' : 'var(--card-bg)', border: included ? '1px solid #bbf7d0' : '1px solid var(--border-secondary)',
+              }}>
+                <span style={{ fontFamily: FM, fontSize: 14, color: included ? '#16a34a' : 'var(--text-muted)' }}>{included ? '\u2713' : '\u25CB'}</span>
+                <span style={{ fontFamily: FM, fontSize: 11, color: included ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: included ? 600 : 400 }}>{p.name}</span>
+                <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>${p.retailPrice}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button onClick={onCancel} style={b2}>CANCEL</button>
+        <button onClick={() => onSave(f)} style={b1}>{f.id ? 'UPDATE' : 'ADD'} PACKAGE</button>
+      </div>
+    </div>
+  );
+}
+
 export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products, packages }) {
   const [modal, setModal] = useState(null);
   const [editProduct, setEditProduct] = useState(null);
@@ -265,93 +378,25 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
       {/* ═══ EDIT PRODUCT MODAL ═══ */}
       <Modal open={modal === 'editProduct' && !!editProduct} onClose={() => { setModal(null); setEditProduct(null); }} title={editProduct?.id ? 'Edit Product' : 'Add Product'} wide>
         {editProduct && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div><label style={lbl}>PRODUCT NAME</label><input value={editProduct.name} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} style={inp} /></div>
-            <div><label style={lbl}>DESCRIPTION</label><textarea value={editProduct.description || ''} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value })} style={{ ...inp, minHeight: 50, resize: 'vertical' }} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-              <div><label style={lbl}>RETAIL PRICE ($)</label><input type="number" value={editProduct.retailPrice || ''} onChange={(e) => setEditProduct({ ...editProduct, retailPrice: parseInt(e.target.value) || 0 })} style={inp} /></div>
-              <div><label style={lbl}>COST ($)</label><input type="number" value={editProduct.cost || ''} onChange={(e) => setEditProduct({ ...editProduct, cost: parseInt(e.target.value) || 0 })} style={inp} /></div>
-              <div><label style={lbl}>CATEGORY</label>
-                <select value={normalizeCategory(editProduct.category)} onChange={(e) => setEditProduct({ ...editProduct, category: e.target.value })} style={inp}>
-                  {PRODUCT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                </select>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-              <div><label style={lbl}>PROVIDER</label><input value={editProduct.provider || ''} onChange={(e) => setEditProduct({ ...editProduct, provider: e.target.value })} style={inp} /></div>
-              <div><label style={lbl}>TERM</label><input value={editProduct.term || ''} onChange={(e) => setEditProduct({ ...editProduct, term: e.target.value })} style={inp} placeholder="36 mo" /></div>
-              <div><label style={lbl}>CONTRACT CODE</label><input value={editProduct.contractCode || ''} onChange={(e) => setEditProduct({ ...editProduct, contractCode: e.target.value })} style={inp} /></div>
-            </div>
-            <div style={{ display: 'flex', gap: 16 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                <input type="checkbox" checked={editProduct.taxable || false} onChange={(e) => setEditProduct({ ...editProduct, taxable: e.target.checked })} /> Taxable
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                <input type="checkbox" checked={editProduct.financeable !== false} onChange={(e) => setEditProduct({ ...editProduct, financeable: e.target.checked })} /> Financeable
-              </label>
-            </div>
-            <div><label style={lbl}>DISCLAIMER</label><textarea value={editProduct.disclaimer || ''} onChange={(e) => setEditProduct({ ...editProduct, disclaimer: e.target.value })} style={{ ...inp, minHeight: 40, resize: 'vertical' }} /></div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setModal(null); setEditProduct(null); }} style={b2}>CANCEL</button>
-              <button onClick={() => saveProduct(editProduct)} style={b1}>{editProduct.id ? 'UPDATE' : 'ADD'} PRODUCT</button>
-            </div>
-          </div>
+          <ProductEditForm
+            key={editProduct.id || '__new__'}
+            initial={editProduct}
+            onSave={(p) => saveProduct(p)}
+            onCancel={() => { setModal(null); setEditProduct(null); }}
+          />
         )}
       </Modal>
 
       {/* ═══ EDIT PACKAGE MODAL ═══ */}
       <Modal open={modal === 'editPackage' && !!editPackage} onClose={() => { setModal(null); setEditPackage(null); }} title={editPackage?.id ? 'Edit Package' : 'Add Package'}>
         {editPackage && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div><label style={lbl}>PACKAGE NAME</label><input value={editPackage.name} onChange={(e) => setEditPackage({ ...editPackage, name: e.target.value })} style={inp} /></div>
-            <div><label style={lbl}>DESCRIPTION</label><input value={editPackage.description || ''} onChange={(e) => setEditPackage({ ...editPackage, description: e.target.value })} style={inp} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10 }}>
-              <div><label style={lbl}>CATEGORY</label>
-                <select value={normalizeCategory(editPackage.category)} onChange={(e) => setEditPackage({ ...editPackage, category: e.target.value })} style={inp}>
-                  {PRODUCT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                </select>
-              </div>
-              <div><label style={lbl}>DISPLAY ORDER</label><input type="number" value={editPackage.displayOrder || ''} onChange={(e) => setEditPackage({ ...editPackage, displayOrder: parseInt(e.target.value) || 0 })} style={inp} /></div>
-              <div><label style={lbl}>COLOR</label><input type="color" value={editPackage.color || '#6b7280'} onChange={(e) => setEditPackage({ ...editPackage, color: e.target.value })} style={{ ...inp, padding: 4, height: 36 }} /></div>
-            </div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: FM, fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer' }}>
-              <input type="checkbox" checked={editPackage.recommended || false} onChange={(e) => setEditPackage({ ...editPackage, recommended: e.target.checked })} /> Mark as Recommended
-            </label>
-            <div>
-              <label style={lbl}>INCLUDED PRODUCTS</label>
-              <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginBottom: 6 }}>
-                Showing products matching the selected category (plus Universal).
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
-                {(() => {
-                  const pkgCat = normalizeCategory(editPackage.category);
-                  return products.filter((p) => {
-                    const pCat = normalizeCategory(p.category);
-                    return pCat === 'universal' || pCat === pkgCat;
-                  });
-                })().map((p) => {
-                  const included = (editPackage.products || []).includes(p.id);
-                  return (
-                    <label key={p.id} onClick={() => {
-                      const prods = included ? editPackage.products.filter((x) => x !== p.id) : [...(editPackage.products || []), p.id];
-                      setEditPackage({ ...editPackage, products: prods });
-                    }} style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 4, cursor: 'pointer',
-                      background: included ? '#f0fdf4' : 'var(--card-bg)', border: included ? '1px solid #bbf7d0' : '1px solid var(--border-secondary)',
-                    }}>
-                      <span style={{ fontFamily: FM, fontSize: 14, color: included ? '#16a34a' : 'var(--text-muted)' }}>{included ? '\u2713' : '\u25CB'}</span>
-                      <span style={{ fontFamily: FM, fontSize: 11, color: included ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: included ? 600 : 400 }}>{p.name}</span>
-                      <span style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>${p.retailPrice}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setModal(null); setEditPackage(null); }} style={b2}>CANCEL</button>
-              <button onClick={() => savePackage(editPackage)} style={b1}>{editPackage.id ? 'UPDATE' : 'ADD'} PACKAGE</button>
-            </div>
-          </div>
+          <PackageEditForm
+            key={editPackage.id || '__new__'}
+            initial={editPackage}
+            products={products}
+            onSave={(pkg) => savePackage(pkg)}
+            onCancel={() => { setModal(null); setEditPackage(null); }}
+          />
         )}
       </Modal>
     </div>
