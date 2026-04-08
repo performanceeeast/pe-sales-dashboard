@@ -37,71 +37,31 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
     const logo = storeTheme?.logo || '/logo.png';
     const brand = storeTheme?.brand_primary || '#b91c1c';
 
-    // Landscape grid: each package is a vertical column
+    // Landscape grid: each package is a vertical column that grows to fill available height
     const stepsHtml = steps.map((step) => {
       const increase = step.summary.withProductsPayment - baseSummary.basePayment;
       return `
-        <div class="pkg-card" style="flex:1;min-width:0;border:1px solid #e2e8f0;border-radius:6px;padding:10px 10px 8px;${step.recommended ? `border-color:${brand};border-width:2px;` : ''}page-break-inside:avoid;display:flex;flex-direction:column;">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-            <div style="width:3px;height:16px;background:${step.color || '#6b7280'};border-radius:2px;"></div>
-            <div class="pkg-name" style="font-family:Oswald;font-size:12px;font-weight:700;color:${step.color || '#333'};flex:1;">${step.name.toUpperCase()}</div>
-            ${step.recommended ? `<span style="font-size:7px;color:${brand};font-weight:700;background:#fef2f2;padding:1px 4px;border-radius:2px;">★ REC</span>` : ''}
+        <div class="pkg-card" style="border:1px solid #e2e8f0;border-radius:8px;padding:14px 14px 12px;${step.recommended ? `border-color:${brand};border-width:2px;` : ''}page-break-inside:avoid;display:flex;flex-direction:column;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:4px;height:22px;background:${step.color || '#6b7280'};border-radius:2px;"></div>
+            <div style="font-family:Oswald;font-size:15px;font-weight:700;color:${step.color || '#333'};flex:1;">${step.name.toUpperCase()}</div>
+            ${step.recommended ? `<span style="font-size:8px;color:${brand};font-weight:700;background:#fef2f2;padding:2px 6px;border-radius:3px;letter-spacing:0.5px;">★ REC</span>` : ''}
           </div>
-          <div style="text-align:center;padding:6px 0;border-top:1px dashed #e2e8f0;border-bottom:1px dashed #e2e8f0;margin-bottom:6px;">
-            <div class="pkg-delta" style="font-family:Oswald;font-size:22px;font-weight:700;color:#d97706;line-height:1;">+$${increase.toFixed(0)}/mo</div>
-            <div style="font-size:7px;color:#94a3b8;margin-top:1px;letter-spacing:0.5px;">OVER BASE</div>
-            <div style="font-size:10px;color:#1e293b;font-weight:700;margin-top:3px;">$${step.summary.withProductsPayment.toFixed(2)}/mo</div>
+          <div style="text-align:center;padding:10px 0;border-top:1px dashed #e2e8f0;border-bottom:1px dashed #e2e8f0;margin-bottom:10px;">
+            <div style="font-family:Oswald;font-size:30px;font-weight:700;color:#d97706;line-height:1;">+$${increase.toFixed(0)}/mo</div>
+            <div style="font-size:8px;color:#94a3b8;margin-top:3px;letter-spacing:1px;">OVER BASE PAYMENT</div>
+            <div style="font-size:13px;color:#1e293b;font-weight:700;margin-top:5px;">$${step.summary.withProductsPayment.toFixed(2)}/mo total</div>
           </div>
-          <div class="pkg-products" style="font-size:8px;color:#475569;line-height:1.5;flex:1;">
-            ${step.products.map((p) => `<div style="padding:1px 0;"><span style="color:#16a34a;font-weight:700;">✓</span> ${p.name}</div>`).join('')}
+          <div style="font-size:10px;color:#475569;line-height:1.6;flex:1;">
+            ${step.products.map((p) => `<div style="padding:2px 0;"><span style="color:#16a34a;font-weight:700;">✓</span> ${p.name}</div>`).join('')}
           </div>
-          <div class="pkg-select" style="margin-top:8px;padding-top:6px;border-top:1px solid #1e293b;display:flex;align-items:center;gap:6px;">
-            <span style="display:inline-block;width:12px;height:12px;border:1.5px solid #1e293b;border-radius:2px;flex-shrink:0;"></span>
-            <span style="font-family:Oswald;font-size:9px;font-weight:700;letter-spacing:0.5px;">SELECT</span>
+          <div style="margin-top:10px;padding-top:8px;border-top:1.5px solid #1e293b;display:flex;align-items:center;justify-content:center;gap:8px;">
+            <span style="display:inline-block;width:16px;height:16px;border:1.5px solid #1e293b;border-radius:2px;flex-shrink:0;"></span>
+            <span style="font-family:Oswald;font-size:11px;font-weight:700;letter-spacing:1px;">SELECT</span>
           </div>
         </div>
       `;
     }).join('');
-
-    // Declination section — simple acknowledgement with customer signature
-    const declinationHtml = `
-      <div style="padding-top:16px;border-top:2px solid #1e293b;">
-        <div style="font-family:Oswald;font-size:14px;font-weight:700;margin-bottom:12px;">OPTIONAL COVERAGE DECLINATION</div>
-        <div style="font-size:11px;color:#1e293b;line-height:1.7;margin-bottom:12px;">
-          I/We understand that Performance East Inc. offered optional protection products and services during this purchase. These products are not required to purchase the unit or obtain financing, unless otherwise required by the lender.
-        </div>
-        <div style="font-size:11px;color:#1e293b;line-height:1.7;margin-bottom:12px;">
-          I/We have been given the opportunity to review these options and ask questions, and I/we have chosen to decline them at this time.
-        </div>
-        <div style="font-size:11px;color:#1e293b;line-height:1.7;margin-bottom:18px;">
-          I/We understand that by declining these products, I/we may be responsible for certain future repair costs, maintenance expenses, or negative equity balances that may have otherwise been covered.
-        </div>
-        <div style="display:flex;gap:40px;margin-top:16px;">
-          <div style="flex:1;">
-            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
-            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Customer Signature</div>
-          </div>
-          <div style="flex:1;">
-            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
-            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Printed Name</div>
-          </div>
-          <div style="width:120px;">
-            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
-            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Date</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:40px;margin-top:16px;">
-          <div style="flex:1;">
-            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
-            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Finance Manager Signature</div>
-          </div>
-          <div style="width:120px;">
-            <div style="border-bottom:1px solid #1e293b;height:30px;"></div>
-            <div style="font-size:9px;color:#94a3b8;margin-top:4px;">Date</div>
-          </div>
-        </div>
-      </div>
-    `;
 
     const w = window.open('', '_blank', 'width=1100,height=850');
     if (!w) return;
@@ -110,83 +70,86 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
       <style>
         * { box-sizing: border-box; }
         @page { size: letter landscape; margin: 0.35in; }
-        html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { font-family: Outfit, sans-serif; padding: 0; color: #1e293b; font-size: 11px; margin: 0; }
-        .menu-page { page-break-after: always; padding: 24px; }
-        .menu-page:last-of-type { page-break-after: auto; }
-        .declination-page { page-break-before: always; padding: 24px; }
+        html, body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
+        body { font-family: Outfit, sans-serif; color: #1e293b; font-size: 12px; }
+        /* Fill the printable area: 11in landscape - 0.7in margins = 10.3in wide / 7.8in tall */
+        .menu-page {
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          min-height: 7.6in;
+        }
+        .pkg-grid { flex: 1; display: flex; gap: 10px; align-items: stretch; }
+        .pkg-card { flex: 1; }
         @media print {
-          .menu-page, .declination-page { padding: 0; }
+          .menu-page { padding: 0; min-height: calc(8.5in - 0.7in - 4px); }
         }
       </style>
       </head><body>
       <div class="menu-page">
         <!-- HEADER -->
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:6px;border-bottom:3px solid ${brand};">
-          <img src="${logo}" style="height:32px;" onerror="this.style.display='none'"/>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:8px;border-bottom:3px solid ${brand};">
+          <img src="${logo}" style="height:38px;" onerror="this.style.display='none'"/>
           <div style="text-align:center;flex:1;">
-            <div style="font-family:Oswald;font-size:13px;font-weight:700;color:${brand};letter-spacing:2px;">FINANCE & PROTECTION MENU</div>
+            <div style="font-family:Oswald;font-size:16px;font-weight:700;color:${brand};letter-spacing:2px;">FINANCE & PROTECTION MENU</div>
           </div>
-          <div style="font-size:9px;color:#94a3b8;text-align:right;">${menu.date}</div>
+          <div style="font-size:11px;color:#94a3b8;text-align:right;">${menu.date}</div>
         </div>
 
         <!-- CUSTOMER + DEAL INFO ROW -->
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:10px;">
           <div style="flex:1;">
-            <div style="font-family:Oswald;font-size:15px;font-weight:700;line-height:1.2;">${menu.customer}</div>
-            <div style="font-size:10px;color:#64748b;">${menu.year || ''} ${menu.make || ''} ${menu.model || ''} ${menu.vin ? '| ' + menu.vin : ''}</div>
+            <div style="font-family:Oswald;font-size:18px;font-weight:700;line-height:1.2;">${menu.customer}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px;">${menu.year || ''} ${menu.make || ''} ${menu.model || ''} ${menu.vin ? '| ' + menu.vin : ''}</div>
           </div>
-          <div style="text-align:right;font-size:10px;color:#64748b;">
+          <div style="text-align:right;font-size:11px;color:#64748b;line-height:1.4;">
             Sale: $${(menu.salePrice || 0).toLocaleString()} | Down: $${(menu.downPayment || 0).toLocaleString()}<br/>
             ${menu.lender || 'TBD'} @ ${menu.apr || 0}% / ${menu.term}mo
           </div>
         </div>
 
         <!-- BASE PAYMENT BAR -->
-        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
-          <div style="font-size:9px;color:#94a3b8;letter-spacing:2px;font-weight:600;">BASE MONTHLY PAYMENT (no optional protections)</div>
-          <div style="font-family:Oswald;font-size:20px;font-weight:700;color:#64748b;line-height:1;">$${baseSummary.basePayment.toFixed(2)}/mo</div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px 18px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:10px;color:#94a3b8;letter-spacing:2px;font-weight:600;">BASE MONTHLY PAYMENT (no optional protections)</div>
+          <div style="font-family:Oswald;font-size:24px;font-weight:700;color:#64748b;line-height:1;">$${baseSummary.basePayment.toFixed(2)}/mo</div>
         </div>
 
-        <div style="font-family:Oswald;font-size:10px;font-weight:700;color:#64748b;letter-spacing:2px;margin-bottom:6px;">PAYMENT OPTIONS</div>
+        <div style="font-family:Oswald;font-size:11px;font-weight:700;color:#64748b;letter-spacing:2px;margin-bottom:8px;">PAYMENT OPTIONS</div>
 
-        <!-- HORIZONTAL PACKAGE GRID -->
-        <div style="display:flex;gap:8px;margin-bottom:10px;align-items:stretch;">
+        <!-- HORIZONTAL PACKAGE GRID — flex:1 to fill remaining vertical space -->
+        <div class="pkg-grid">
           ${stepsHtml}
         </div>
 
         <!-- CUSTOMER SELECTION + SIGNATURE ROW -->
-        <div style="border:2px solid #1e293b;border-radius:6px;padding:10px 14px;margin-bottom:8px;">
-          <div style="font-family:Oswald;font-size:10px;font-weight:700;letter-spacing:1.5px;margin-bottom:8px;color:#1e293b;">CUSTOMER ACKNOWLEDGEMENT &amp; SELECTION</div>
-          <div style="font-size:9px;color:#475569;line-height:1.5;margin-bottom:10px;">
-            I/We acknowledge the optional protection products were offered and explained. Check the SELECT box above the package of choice (or check DECLINE below) and sign.
+        <div style="border:2px solid #1e293b;border-radius:6px;padding:12px 18px;margin-top:12px;">
+          <div style="font-family:Oswald;font-size:11px;font-weight:700;letter-spacing:1.5px;margin-bottom:8px;color:#1e293b;">CUSTOMER ACKNOWLEDGEMENT &amp; SELECTION</div>
+          <div style="font-size:10px;color:#475569;line-height:1.5;margin-bottom:12px;">
+            I/We acknowledge the optional protection products were offered and explained. Check the SELECT box above the package of choice (or check DECLINE ALL below) and sign. By declining, I/we may be responsible for future repair costs, maintenance expenses, or negative equity that may have otherwise been covered.
           </div>
-          <div style="display:flex;gap:24px;align-items:flex-end;">
+          <div style="display:flex;gap:28px;align-items:flex-end;">
             <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-              <span style="display:inline-block;width:14px;height:14px;border:1.5px solid #1e293b;border-radius:2px;"></span>
-              <span style="font-family:Oswald;font-size:10px;font-weight:700;letter-spacing:0.5px;">DECLINE ALL</span>
+              <span style="display:inline-block;width:16px;height:16px;border:1.5px solid #1e293b;border-radius:2px;"></span>
+              <span style="font-family:Oswald;font-size:11px;font-weight:700;letter-spacing:0.5px;">DECLINE ALL</span>
             </div>
             <div style="flex:1;">
-              <div style="border-bottom:1px solid #1e293b;height:24px;"></div>
-              <div style="font-size:8px;color:#94a3b8;margin-top:2px;">Customer Signature</div>
+              <div style="border-bottom:1px solid #1e293b;height:28px;"></div>
+              <div style="font-size:9px;color:#94a3b8;margin-top:3px;">Customer Signature</div>
             </div>
             <div style="flex:1;">
-              <div style="border-bottom:1px solid #1e293b;height:24px;"></div>
-              <div style="font-size:8px;color:#94a3b8;margin-top:2px;">Printed Name</div>
+              <div style="border-bottom:1px solid #1e293b;height:28px;"></div>
+              <div style="font-size:9px;color:#94a3b8;margin-top:3px;">Printed Name</div>
             </div>
-            <div style="width:110px;">
-              <div style="border-bottom:1px solid #1e293b;height:24px;"></div>
-              <div style="font-size:8px;color:#94a3b8;margin-top:2px;">Date</div>
+            <div style="width:130px;">
+              <div style="border-bottom:1px solid #1e293b;height:28px;"></div>
+              <div style="font-size:9px;color:#94a3b8;margin-top:3px;">Date</div>
             </div>
           </div>
         </div>
 
-        <div style="font-size:7px;color:#94a3b8;line-height:1.4;">
+        <div style="font-size:8px;color:#94a3b8;line-height:1.4;margin-top:8px;">
           ${menu.disclaimerText || 'All prices and payments are estimates. Final terms subject to lender approval. Optional protection products are not required for purchase or financing.'}
         </div>
-      </div>
-      <div class="declination-page">
-        ${declinationHtml}
       </div>
       </body></html>`);
     w.document.close();
