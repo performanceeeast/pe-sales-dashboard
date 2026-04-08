@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MONTHS, UNIT_TYPES, UNIT_COLORS, DEFAULT_SALESPEOPLE, DEFAULT_GOALS, DEFAULT_PGA_TIERS, DEFAULT_BE_SPIFFS } from './lib/constants';
-import { loadMonth, saveMonth, loadYear, loadUsers, saveOneUser, loadLatestFiMenuConfigForStore, saveFiMenuConfigBackup } from './lib/storage';
+import { loadMonth, saveMonth, loadYear, loadUsers, saveOneUser, loadLatestFiMenuConfigForStore, saveFiMenuConfigBackup, loadAllFiMenusForStore, saveFiMenusBackup } from './lib/storage';
 import { getSpUnits, getRepSpiffs } from './lib/calculations';
 import { canSeeTab, canManageUsers, ROLES } from './lib/auth';
 import { StatCard, TabTransition, styles, FM, FH, FB } from './components/SharedUI';
@@ -135,7 +135,23 @@ export default function App() {
         setFiChecklist(data.fiChecklist || {});
         setFiDeals(data.fiDeals || []);
         setFiTargets(data.fiTargets || {});
-        setFiMenus(data.fiMenus || []);
+        // Store-level F&I menu list: aggregate menus across all months for this store,
+        // deduped by id with most-recently-updated winning. Merge with the current
+        // month's loaded fiMenus so the user sees every menu they've ever built.
+        const monthMenus = Array.isArray(data.fiMenus) ? data.fiMenus : [];
+        const allStoreMenus = await loadAllFiMenusForStore(storeId);
+        const menuMap = new Map();
+        [...monthMenus, ...allStoreMenus].forEach((m) => {
+          if (!m || !m.id) return;
+          const existing = menuMap.get(m.id);
+          if (!existing || (m.updatedAt || '') > (existing.updatedAt || '')) {
+            menuMap.set(m.id, m);
+          }
+        });
+        const aggregatedMenus = Array.from(menuMap.values());
+        setFiMenus(aggregatedMenus);
+        if (aggregatedMenus.length > 0) saveFiMenusBackup(storeId, aggregatedMenus);
+
         // Store-level F&I catalog: if this month's config is empty but the store has
         // a catalog saved on another month (Supabase) or in local backup, use that.
         let fiCfg = data.fiMenuConfig || {};
@@ -160,7 +176,10 @@ export default function App() {
         setDailyLeadCounts([]); setBulkLeadCounts([]); setFloorDailyLeadCounts([]); setFloorBulkLeadCounts([]);
         setNotes([]); setMeetingNotes([]); setGoogleReviews({}); setGsmChecklist({}); setFiKpis({}); setFiChecklist({}); setFiDeals([]); setFiTargets({}); setGsmBonusConfig({});
         setPromos([]); setPriceList([]);
-        setFiMenus([]);
+        // Even with no monthly row, still try to restore the store-level F&I menu list
+        const allStoreMenusFallback = await loadAllFiMenusForStore(storeId);
+        setFiMenus(allStoreMenusFallback);
+        if (allStoreMenusFallback.length > 0) saveFiMenusBackup(storeId, allStoreMenusFallback);
         // Even with no monthly row, still try to restore the store-level F&I catalog
         const latestForStore = await loadLatestFiMenuConfigForStore(storeId);
         if (latestForStore && ((latestForStore.products && latestForStore.products.length > 0) || (latestForStore.packages && latestForStore.packages.length > 0))) {

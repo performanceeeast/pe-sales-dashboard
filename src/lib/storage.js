@@ -36,6 +36,54 @@ export function readFiMenuConfigBackup(storeId) {
   } catch { return null; }
 }
 
+// Dedicated localStorage backup for finance menus (the saved menu records).
+// Same store-level pattern as the F&I config backup. Survives month switches
+// and protects against silent Supabase save failures.
+export function saveFiMenusBackup(storeId, menus) {
+  if (!Array.isArray(menus)) return;
+  try {
+    const key = `peg-fi-menus-${storeId || 'default'}`;
+    localStorage.setItem(key, JSON.stringify({ menus, savedAt: new Date().toISOString() }));
+  } catch (e) { console.error('fi-menus backup write failed:', e); }
+}
+
+export function readFiMenusBackup(storeId) {
+  try {
+    const key = `peg-fi-menus-${storeId || 'default'}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && Array.isArray(parsed.menus) ? parsed.menus : null;
+  } catch { return null; }
+}
+
+// Load every saved finance menu for a store across every month in Supabase, deduped by id.
+// Provides store-level fiMenus persistence so menus aren't trapped in the month they were saved in.
+export async function loadAllFiMenusForStore(storeId) {
+  try {
+    let q = supabase.from('monthly_data').select('year,month,fi_menus');
+    if (storeId) q = q.eq('store_id', storeId);
+    const { data, error } = await q;
+    if (error || !data) return [];
+    const byId = new Map();
+    data.forEach((row) => {
+      const arr = Array.isArray(row.fi_menus) ? row.fi_menus : [];
+      arr.forEach((m) => {
+        if (!m || !m.id) return;
+        const existing = byId.get(m.id);
+        // Prefer the most recently updated copy
+        if (!existing || (m.updatedAt || '') > (existing.updatedAt || '')) {
+          byId.set(m.id, m);
+        }
+      });
+    });
+    return Array.from(byId.values());
+  } catch (e) {
+    console.error('loadAllFiMenusForStore error:', e);
+    return [];
+  }
+}
+
 // Deep scan: look at EVERY localStorage key AND query Supabase for every monthly row,
 // return every fiMenuConfig we can find with its source. Used for data recovery when
 // the user's catalog has been silently lost somewhere in the pipeline.
@@ -172,18 +220,39 @@ export async function loadLatestFiMenuConfigForStore(storeId) {
 export async function loadMonth(storeId, year, month) {
   const local = readLocalMonth(storeId, year, month);
   const fiBackup = readFiMenuConfigBackup(storeId);
+  const fiMenusBackup = readFiMenusBackup(storeId);
 
   // The F&I menu config is STORE-LEVEL (not per-month). Each store has its own catalog
   // that persists across all months. The dedicated store-keyed backup is the authoritative
   // source for fiMenuConfig whenever it has any data. This also ensures each store's
   // catalog is fully independent from other stores (backup keys include storeId).
   const applyFiBackup = (data) => {
-    if (!fiBackup) return data;
-    const hasBackupData = (Array.isArray(fiBackup.products) && fiBackup.products.length > 0)
-      || (Array.isArray(fiBackup.packages) && fiBackup.packages.length > 0);
-    if (!hasBackupData) return data;
-    // Backup is authoritative for this store's F&I config
-    return { ...(data || {}), fiMenuConfig: fiBackup };
+    let out = data;
+    if (fiBackup) {
+      const hasBackupData = (Array.isArray(fiBackup.products) && fiBackup.products.length > 0)
+        || (Array.isArray(fiBackup.packages) && fiBackup.packages.length > 0);
+      if (hasBackupData) {
+        out = { ...(out || {}), fiMenuConfig: fiBackup };
+      }
+    }
+    // Same protection for the fiMenus list — if the backup has more menus than the
+    // current data, prefer the backup. Dedupe by id with most-recently-updated winning.
+    if (fiMenusBackup && fiMenusBackup.length > 0) {
+      const current = (out && Array.isArray(out.fiMenus)) ? out.fiMenus : [];
+      const byId = new Map();
+      [...current, ...fiMenusBackup].forEach((m) => {
+        if (!m || !m.id) return;
+        const existing = byId.get(m.id);
+        if (!existing || (m.updatedAt || '') > (existing.updatedAt || '')) {
+          byId.set(m.id, m);
+        }
+      });
+      const merged = Array.from(byId.values());
+      if (merged.length > current.length) {
+        out = { ...(out || {}), fiMenus: merged };
+      }
+    }
+    return out;
   };
 
   try {
@@ -216,6 +285,10 @@ export async function saveMonth(storeId, year, month, data) {
   const fi = data && data.fiMenuConfig;
   if (fi && ((Array.isArray(fi.products) && fi.products.length > 0) || (Array.isArray(fi.packages) && fi.packages.length > 0))) {
     saveFiMenuConfigBackup(storeId, fi);
+  }
+  // Same protection for the saved finance menus list
+  if (data && Array.isArray(data.fiMenus) && data.fiMenus.length > 0) {
+    saveFiMenusBackup(storeId, data.fiMenus);
   }
 
   // Then write to Supabase (async, with retry for unknown columns)
