@@ -17,39 +17,46 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
   const disclaimer = config.disclaimer || 'All prices and payments are estimates. Final terms subject to lender approval.';
 
   function updateConfig(updates) {
-    saveFiMenuConfig({ ...config, ...updates });
+    // Always merge against the LATEST fiMenuConfig from props (not a stale closure)
+    saveFiMenuConfig({ ...(fiMenuConfig || {}), ...updates });
   }
 
   // ── Product CRUD ──
+  // Always read products list from fiMenuConfig at call time so we don't operate
+  // on a stale derived `products` prop that may be the fallback default list.
   function saveProduct(p) {
-    const existing = products.find((x) => x.id === p.id);
+    const currentProducts = (fiMenuConfig && fiMenuConfig.products) ? fiMenuConfig.products : products;
+    const existing = currentProducts.find((x) => x.id === p.id);
     const updated = existing
-      ? products.map((x) => x.id === p.id ? p : x)
-      : [...products, { ...p, id: p.id || Date.now().toString() }];
-    updateConfig({ products: updated });
+      ? currentProducts.map((x) => x.id === p.id ? p : x)
+      : [...currentProducts, { ...p, id: p.id || Date.now().toString() }];
+    saveFiMenuConfig({ ...(fiMenuConfig || {}), products: updated });
     setEditProduct(null);
     setModal(null);
   }
 
   function deleteProduct(id) {
     if (!confirm('Remove this product?')) return;
-    updateConfig({ products: products.filter((p) => p.id !== id) });
+    const currentProducts = (fiMenuConfig && fiMenuConfig.products) ? fiMenuConfig.products : products;
+    saveFiMenuConfig({ ...(fiMenuConfig || {}), products: currentProducts.filter((p) => p.id !== id) });
   }
 
   // ── Package CRUD ──
   function savePackage(pkg) {
-    const existing = packages.find((x) => x.id === pkg.id);
+    const currentPackages = (fiMenuConfig && fiMenuConfig.packages) ? fiMenuConfig.packages : packages;
+    const existing = currentPackages.find((x) => x.id === pkg.id);
     const updated = existing
-      ? packages.map((x) => x.id === pkg.id ? pkg : x)
-      : [...packages, { ...pkg, id: pkg.id || Date.now().toString() }];
-    updateConfig({ packages: updated });
+      ? currentPackages.map((x) => x.id === pkg.id ? pkg : x)
+      : [...currentPackages, { ...pkg, id: pkg.id || Date.now().toString() }];
+    saveFiMenuConfig({ ...(fiMenuConfig || {}), packages: updated });
     setEditPackage(null);
     setModal(null);
   }
 
   function deletePackage(id) {
     if (!confirm('Remove this package?')) return;
-    updateConfig({ packages: packages.filter((p) => p.id !== id) });
+    const currentPackages = (fiMenuConfig && fiMenuConfig.packages) ? fiMenuConfig.packages : packages;
+    saveFiMenuConfig({ ...(fiMenuConfig || {}), packages: currentPackages.filter((p) => p.id !== id) });
   }
 
   return (

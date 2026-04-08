@@ -42,14 +42,14 @@ export default function FIDashTab({
   const fDeals = fiDeals || [];
   const canSettings = canEditFiMenuSettings(currentUser);
 
-  // Seed menu config on first load
+  // Seed menu config when needed — re-checks whenever fiMenuConfig changes
   useEffect(() => {
     if (saveFiMenuConfig && fiMenuConfig && !fiMenuConfig.products && !fiMenuConfig.packages) {
       const seedProducts = getProductsForStore(storeConfig, DEFAULT_FI_PRODUCTS);
       const seedPackages = getPackagesForStore(storeConfig, seedProducts, DEFAULT_FI_PACKAGES);
       saveFiMenuConfig({ ...fiMenuConfig, products: seedProducts, packages: seedPackages });
     }
-  }, []);
+  }, [fiMenuConfig?.products, fiMenuConfig?.packages, storeConfig]);
 
   const products = fiMenuConfig?.products || getProductsForStore(storeConfig, DEFAULT_FI_PRODUCTS);
   const packages = fiMenuConfig?.packages || getPackagesForStore(storeConfig, products, DEFAULT_FI_PACKAGES);

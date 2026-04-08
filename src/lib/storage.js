@@ -448,6 +448,7 @@ function rowToMonthData(row) {
 function monthDataToRow(year, month, data) {
   return {
     year, month,
+    deals: data.deals || [],
     goals: data.goals || {},
     salespeople: data.sp || data.salespeople || [],
     pga_tiers: data.pga || data.pga_tiers || [],
