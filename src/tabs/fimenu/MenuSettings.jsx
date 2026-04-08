@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DEFAULT_LENDERS, DEFAULT_TERMS } from '../../lib/fiMenuConstants';
 import { Modal, styles, FM, FH } from '../../components/SharedUI';
 
@@ -15,6 +15,21 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
   const defaultTaxRate = config.defaultTaxRate ?? 0;
   const defaultTerms = config.defaultTerms || DEFAULT_TERMS;
   const disclaimer = config.disclaimer || 'All prices and payments are estimates. Final terms subject to lender approval.';
+
+  // Local state for default settings inputs — prevents save-on-every-keystroke
+  // which caused cascading re-renders and flicker in open modals.
+  const [localDocFee, setLocalDocFee] = useState(String(defaultDocFee));
+  const [localTaxRate, setLocalTaxRate] = useState(String(defaultTaxRate));
+  const [localTerms, setLocalTerms] = useState(defaultTerms.join(', '));
+  const [localLenders, setLocalLenders] = useState(lenders.join(', '));
+  const [localDisclaimer, setLocalDisclaimer] = useState(disclaimer);
+
+  // Sync local state when config changes from outside (e.g. month change)
+  useEffect(() => { setLocalDocFee(String(config.defaultDocFee ?? 299)); }, [config.defaultDocFee]);
+  useEffect(() => { setLocalTaxRate(String(config.defaultTaxRate ?? 0)); }, [config.defaultTaxRate]);
+  useEffect(() => { setLocalTerms((config.defaultTerms || DEFAULT_TERMS).join(', ')); }, [config.defaultTerms]);
+  useEffect(() => { setLocalLenders((config.lenders || DEFAULT_LENDERS).join(', ')); }, [config.lenders]);
+  useEffect(() => { setLocalDisclaimer(config.disclaimer || 'All prices and payments are estimates. Final terms subject to lender approval.'); }, [config.disclaimer]);
 
   function updateConfig(updates) {
     // Always merge against the LATEST fiMenuConfig from props (not a stale closure)
@@ -126,35 +141,67 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
 
       {/* ═══ DEFAULTS ═══ */}
       <div style={card}>
-        <div style={cH}>DEFAULT SETTINGS</div>
+        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>DEFAULT SETTINGS</span>
+          <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Changes save when you click out of a field</span>
+        </div>
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             <div>
               <label style={lbl}>DEFAULT DOC FEE ($)</label>
-              <input type="number" value={defaultDocFee} onChange={(e) => updateConfig({ defaultDocFee: parseInt(e.target.value) || 0 })} style={{ ...inp, textAlign: 'center' }} />
+              <input
+                type="number"
+                value={localDocFee}
+                onChange={(e) => setLocalDocFee(e.target.value)}
+                onBlur={() => { const v = parseInt(localDocFee) || 0; if (v !== config.defaultDocFee) updateConfig({ defaultDocFee: v }); }}
+                style={{ ...inp, textAlign: 'center' }}
+              />
             </div>
             <div>
               <label style={lbl}>DEFAULT TAX RATE (%)</label>
-              <input type="number" step="0.01" value={defaultTaxRate} onChange={(e) => updateConfig({ defaultTaxRate: parseFloat(e.target.value) || 0 })} style={{ ...inp, textAlign: 'center' }} />
+              <input
+                type="number"
+                step="0.01"
+                value={localTaxRate}
+                onChange={(e) => setLocalTaxRate(e.target.value)}
+                onBlur={() => { const v = parseFloat(localTaxRate) || 0; if (v !== config.defaultTaxRate) updateConfig({ defaultTaxRate: v }); }}
+                style={{ ...inp, textAlign: 'center' }}
+              />
             </div>
             <div>
               <label style={lbl}>DEFAULT TERMS</label>
-              <input value={(config.defaultTerms || DEFAULT_TERMS).join(', ')} onChange={(e) => updateConfig({ defaultTerms: e.target.value.split(',').map((t) => parseInt(t.trim())).filter(Boolean) })} style={inp} placeholder="24, 36, 48, 60..." />
+              <input
+                value={localTerms}
+                onChange={(e) => setLocalTerms(e.target.value)}
+                onBlur={() => { const arr = localTerms.split(',').map((t) => parseInt(t.trim())).filter(Boolean); updateConfig({ defaultTerms: arr }); }}
+                style={inp}
+                placeholder="24, 36, 48, 60..."
+              />
             </div>
           </div>
           <div>
             <label style={lbl}>LENDERS (comma-separated)</label>
-            <input value={lenders.join(', ')} onChange={(e) => updateConfig({ lenders: e.target.value.split(',').map((l) => l.trim()).filter(Boolean) })} style={inp} />
+            <input
+              value={localLenders}
+              onChange={(e) => setLocalLenders(e.target.value)}
+              onBlur={() => { const arr = localLenders.split(',').map((l) => l.trim()).filter(Boolean); updateConfig({ lenders: arr }); }}
+              style={inp}
+            />
           </div>
           <div>
             <label style={lbl}>DISCLAIMER TEXT</label>
-            <textarea value={disclaimer} onChange={(e) => updateConfig({ disclaimer: e.target.value })} style={{ ...inp, minHeight: 60, resize: 'vertical' }} />
+            <textarea
+              value={localDisclaimer}
+              onChange={(e) => setLocalDisclaimer(e.target.value)}
+              onBlur={() => { if (localDisclaimer !== config.disclaimer) updateConfig({ disclaimer: localDisclaimer }); }}
+              style={{ ...inp, minHeight: 60, resize: 'vertical' }}
+            />
           </div>
         </div>
       </div>
 
       {/* ═══ EDIT PRODUCT MODAL ═══ */}
-      <Modal open={modal === 'editProduct' && editProduct} onClose={() => { setModal(null); setEditProduct(null); }} title={editProduct?.id ? 'Edit Product' : 'Add Product'} wide>
+      <Modal open={modal === 'editProduct' && !!editProduct} onClose={() => { setModal(null); setEditProduct(null); }} title={editProduct?.id ? 'Edit Product' : 'Add Product'} wide>
         {editProduct && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div><label style={lbl}>PRODUCT NAME</label><input value={editProduct.name} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })} style={inp} /></div>
@@ -193,7 +240,7 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
       </Modal>
 
       {/* ═══ EDIT PACKAGE MODAL ═══ */}
-      <Modal open={modal === 'editPackage' && editPackage} onClose={() => { setModal(null); setEditPackage(null); }} title={editPackage?.id ? 'Edit Package' : 'Add Package'}>
+      <Modal open={modal === 'editPackage' && !!editPackage} onClose={() => { setModal(null); setEditPackage(null); }} title={editPackage?.id ? 'Edit Package' : 'Add Package'}>
         {editPackage && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div><label style={lbl}>PACKAGE NAME</label><input value={editPackage.name} onChange={(e) => setEditPackage({ ...editPackage, name: e.target.value })} style={inp} /></div>
