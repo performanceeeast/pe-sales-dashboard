@@ -168,6 +168,52 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
     saveFiMenuConfig({ ...(fiMenuConfig || {}), ...updates });
   }
 
+  // Save all default settings fields at once. Called by the SAVE CHANGES button.
+  function saveAllDefaults() {
+    const updates = {};
+    const docFeeVal = parseInt(localDocFee) || 0;
+    if (docFeeVal !== config.defaultDocFee) updates.defaultDocFee = docFeeVal;
+    const taxRateVal = parseFloat(localTaxRate) || 0;
+    if (taxRateVal !== config.defaultTaxRate) updates.defaultTaxRate = taxRateVal;
+    const termsArr = localTerms.split(',').map((t) => parseInt(t.trim())).filter(Boolean);
+    updates.defaultTerms = termsArr;
+    const lendersArr = localLenders.split(',').map((l) => l.trim()).filter(Boolean);
+    updates.lenders = lendersArr;
+    if (localDisclaimer !== config.disclaimer) updates.disclaimer = localDisclaimer;
+    // Per-category defaults
+    const existingPerCat = config.defaultsPerCategory || {};
+    const newPerCat = { ...existingPerCat };
+    PRODUCT_CATEGORIES.forEach((cat) => {
+      if (cat.id === 'universal') return;
+      const entry = localCatDefaults[cat.id] || {};
+      const parsedFee = entry.docFee === '' || entry.docFee == null ? undefined : (parseInt(entry.docFee) || 0);
+      const parsedTax = entry.taxRate === '' || entry.taxRate == null ? undefined : (parseFloat(entry.taxRate) || 0);
+      newPerCat[cat.id] = { ...(existingPerCat[cat.id] || {}), docFee: parsedFee, taxRate: parsedTax };
+    });
+    updates.defaultsPerCategory = newPerCat;
+    saveFiMenuConfig({ ...(fiMenuConfig || {}), ...updates });
+  }
+
+  // Detect whether any default settings field has unsaved changes
+  const defaultsDirty = (() => {
+    if ((parseInt(localDocFee) || 0) !== (config.defaultDocFee ?? 299)) return true;
+    if ((parseFloat(localTaxRate) || 0) !== (config.defaultTaxRate ?? 0)) return true;
+    if (localTerms !== (config.defaultTerms || DEFAULT_TERMS).join(', ')) return true;
+    if (localLenders !== (config.lenders || DEFAULT_LENDERS).join(', ')) return true;
+    if (localDisclaimer !== (config.disclaimer || 'All prices and payments are estimates. Final terms subject to lender approval.')) return true;
+    const existingPerCat = config.defaultsPerCategory || {};
+    for (const cat of PRODUCT_CATEGORIES) {
+      if (cat.id === 'universal') continue;
+      const entry = localCatDefaults[cat.id] || {};
+      const existing = existingPerCat[cat.id] || {};
+      const parsedFee = entry.docFee === '' || entry.docFee == null ? undefined : (parseInt(entry.docFee) || 0);
+      const parsedTax = entry.taxRate === '' || entry.taxRate == null ? undefined : (parseFloat(entry.taxRate) || 0);
+      if (parsedFee !== existing.docFee) return true;
+      if (parsedTax !== existing.taxRate) return true;
+    }
+    return false;
+  })();
+
   // ── Product CRUD ──
   // Always read products list from fiMenuConfig at call time so we don't operate
   // on a stale derived `products` prop that may be the fallback default list.
@@ -274,9 +320,20 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
 
       {/* ═══ DEFAULTS ═══ */}
       <div style={card}>
-        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
           <span>DEFAULT SETTINGS</span>
-          <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Changes save when you click out of a field</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {defaultsDirty && (
+              <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '3px 8px', borderRadius: 3 }}>UNSAVED CHANGES</span>
+            )}
+            <button
+              onClick={saveAllDefaults}
+              disabled={!defaultsDirty}
+              style={{ ...b1, padding: '5px 14px', fontSize: 10, opacity: defaultsDirty ? 1 : 0.4, cursor: defaultsDirty ? 'pointer' : 'default' }}
+            >
+              SAVE CHANGES
+            </button>
+          </div>
         </div>
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Per-category doc fee and tax rate */}
@@ -290,28 +347,15 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
               <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 1, textAlign: 'center' }}>DOC FEE ($)</div>
               <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 1, textAlign: 'center' }}>TAX RATE (%)</div>
               {PRODUCT_CATEGORIES.filter((c) => c.id !== 'universal').map((cat) => {
-                const current = (config.defaultsPerCategory || {})[cat.id] || {};
                 const localFee = (localCatDefaults[cat.id] && localCatDefaults[cat.id].docFee) || '';
                 const localTax = (localCatDefaults[cat.id] && localCatDefaults[cat.id].taxRate) || '';
                 const setFee = (v) => setLocalCatDefaults((p) => ({ ...p, [cat.id]: { ...(p[cat.id] || {}), docFee: v } }));
                 const setTax = (v) => setLocalCatDefaults((p) => ({ ...p, [cat.id]: { ...(p[cat.id] || {}), taxRate: v } }));
-                const saveFee = () => {
-                  const parsed = localFee === '' ? undefined : (parseInt(localFee) || 0);
-                  const existing = config.defaultsPerCategory || {};
-                  if (parsed === current.docFee) return;
-                  updateConfig({ defaultsPerCategory: { ...existing, [cat.id]: { ...(existing[cat.id] || {}), docFee: parsed } } });
-                };
-                const saveTax = () => {
-                  const parsed = localTax === '' ? undefined : (parseFloat(localTax) || 0);
-                  const existing = config.defaultsPerCategory || {};
-                  if (parsed === current.taxRate) return;
-                  updateConfig({ defaultsPerCategory: { ...existing, [cat.id]: { ...(existing[cat.id] || {}), taxRate: parsed } } });
-                };
                 return (
                   <React.Fragment key={cat.id}>
                     <div style={{ fontFamily: FH, fontSize: 11, fontWeight: 700, color: cat.color }}>{cat.label.toUpperCase()}</div>
-                    <input type="number" value={localFee} onChange={(e) => setFee(e.target.value)} onBlur={saveFee} style={{ ...inp, textAlign: 'center' }} placeholder="299" />
-                    <input type="number" step="0.01" value={localTax} onChange={(e) => setTax(e.target.value)} onBlur={saveTax} style={{ ...inp, textAlign: 'center' }} placeholder="0.00" />
+                    <input type="number" value={localFee} onChange={(e) => setFee(e.target.value)} style={{ ...inp, textAlign: 'center' }} placeholder="299" />
+                    <input type="number" step="0.01" value={localTax} onChange={(e) => setTax(e.target.value)} style={{ ...inp, textAlign: 'center' }} placeholder="0.00" />
                   </React.Fragment>
                 );
               })}
@@ -328,7 +372,6 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
                 type="number"
                 value={localDocFee}
                 onChange={(e) => setLocalDocFee(e.target.value)}
-                onBlur={() => { const v = parseInt(localDocFee) || 0; if (v !== config.defaultDocFee) updateConfig({ defaultDocFee: v }); }}
                 style={{ ...inp, textAlign: 'center' }}
               />
             </div>
@@ -339,7 +382,6 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
                 step="0.01"
                 value={localTaxRate}
                 onChange={(e) => setLocalTaxRate(e.target.value)}
-                onBlur={() => { const v = parseFloat(localTaxRate) || 0; if (v !== config.defaultTaxRate) updateConfig({ defaultTaxRate: v }); }}
                 style={{ ...inp, textAlign: 'center' }}
               />
             </div>
@@ -348,7 +390,6 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
               <input
                 value={localTerms}
                 onChange={(e) => setLocalTerms(e.target.value)}
-                onBlur={() => { const arr = localTerms.split(',').map((t) => parseInt(t.trim())).filter(Boolean); updateConfig({ defaultTerms: arr }); }}
                 style={inp}
                 placeholder="24, 36, 48, 60..."
               />
@@ -359,7 +400,6 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
             <input
               value={localLenders}
               onChange={(e) => setLocalLenders(e.target.value)}
-              onBlur={() => { const arr = localLenders.split(',').map((l) => l.trim()).filter(Boolean); updateConfig({ lenders: arr }); }}
               style={inp}
             />
           </div>
@@ -368,9 +408,21 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
             <textarea
               value={localDisclaimer}
               onChange={(e) => setLocalDisclaimer(e.target.value)}
-              onBlur={() => { if (localDisclaimer !== config.disclaimer) updateConfig({ disclaimer: localDisclaimer }); }}
               style={{ ...inp, minHeight: 60, resize: 'vertical' }}
             />
+          </div>
+          {/* Bottom save button for convenience */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border-secondary)' }}>
+            {defaultsDirty && (
+              <span style={{ fontFamily: FM, fontSize: 10, color: '#d97706', alignSelf: 'center' }}>You have unsaved changes</span>
+            )}
+            <button
+              onClick={saveAllDefaults}
+              disabled={!defaultsDirty}
+              style={{ ...b1, opacity: defaultsDirty ? 1 : 0.4, cursor: defaultsDirty ? 'pointer' : 'default' }}
+            >
+              SAVE CHANGES
+            </button>
           </div>
         </div>
       </div>
