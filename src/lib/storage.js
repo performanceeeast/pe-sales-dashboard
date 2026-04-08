@@ -4,6 +4,24 @@
  */
 import { supabase } from './supabaseClient';
 
+// ── Save Status Tracking ──
+// Tracks the most recent save outcome so the UI can show a status indicator.
+// Status values: 'idle' | 'saving' | 'saved' | 'error' | 'partial'
+//   'partial' = save succeeded but had to strip unknown columns
+let saveStatus = { state: 'idle', message: '', strippedColumns: [], lastSavedAt: null };
+const saveStatusListeners = new Set();
+
+export function getSaveStatus() { return { ...saveStatus }; }
+export function subscribeSaveStatus(fn) {
+  saveStatusListeners.add(fn);
+  fn(saveStatus);
+  return () => saveStatusListeners.delete(fn);
+}
+function setSaveStatus(next) {
+  saveStatus = { ...saveStatus, ...next };
+  saveStatusListeners.forEach((fn) => { try { fn(saveStatus); } catch {} });
+}
+
 // ── Monthly Data (goals, KPIs, checklists, etc.) ──
 
 function readLocalMonth(storeId, year, month) {
@@ -273,9 +291,10 @@ export async function loadMonth(storeId, year, month) {
 
 // List of fields that should be safe in newer schemas but may be missing in older ones.
 // If an upsert fails with an unknown-column error, we strip these and retry.
-const OPTIONAL_COLUMNS = ['deals', 'fi_menu_config', 'fi_menus', 'promo_records', 'pricing_records', 'inventory_items', 'gsm_bonus_config', 'history_counts'];
+const OPTIONAL_COLUMNS = ['deals', 'floor_leads', 'fi_menu_config', 'fi_menus', 'promo_records', 'pricing_records', 'inventory_items', 'gsm_bonus_config', 'history_counts', 'fi_checklist'];
 
 export async function saveMonth(storeId, year, month, data) {
+  setSaveStatus({ state: 'saving', message: 'Saving…' });
   // Always write localStorage FIRST (synchronous, never lost)
   const cacheKey = storeId ? `peg-sales-${storeId}-${year}-${month}` : `peg-sales-${year}-${month}`;
   try { localStorage.setItem(cacheKey, JSON.stringify(data)); } catch (e) { console.error('localStorage write failed:', e); }
@@ -300,33 +319,51 @@ export async function saveMonth(storeId, year, month, data) {
       .upsert(r, { onConflict: storeId ? 'store_id,year,month' : 'year,month' });
     return error;
   };
+  const stripped = [];
   try {
     let err = await tryUpsert(row);
-    // If Supabase rejects an unknown column, strip known-optional columns one at a time and retry
     let attempts = 0;
     while (err && attempts < OPTIONAL_COLUMNS.length) {
       const msg = (err.message || '').toLowerCase();
       if (!msg.includes('column') && !msg.includes('schema') && !msg.includes('does not exist')) break;
-      const stripped = { ...row };
-      // Remove any column mentioned by name in the error
       let removedSomething = false;
       for (const col of OPTIONAL_COLUMNS) {
-        if (msg.includes(col) && stripped[col] !== undefined) {
-          delete stripped[col];
+        if (msg.includes(col) && row[col] !== undefined) {
+          delete row[col];
+          stripped.push(col);
           removedSomething = true;
         }
       }
       if (!removedSomething) break;
-      // Mutate row for next iteration so we don't re-add stripped fields
-      Object.keys(row).forEach((k) => { if (stripped[k] === undefined) delete row[k]; });
       err = await tryUpsert(row);
       attempts++;
     }
     if (err) {
       console.error('saveMonth Supabase error (data safe in localStorage):', err);
+      setSaveStatus({
+        state: 'error',
+        message: 'Save failed: ' + (err.message || 'Unknown error') + ' — Data is safe in browser cache. Click for details.',
+        strippedColumns: stripped,
+      });
+      return;
+    }
+    if (stripped.length > 0) {
+      setSaveStatus({
+        state: 'partial',
+        message: `Saved with ${stripped.length} field(s) skipped — schema missing: ${stripped.join(', ')}`,
+        strippedColumns: stripped,
+        lastSavedAt: new Date().toISOString(),
+      });
+    } else {
+      setSaveStatus({ state: 'saved', message: 'All saved', strippedColumns: [], lastSavedAt: new Date().toISOString() });
     }
   } catch (e) {
     console.error('saveMonth Supabase error (data safe in localStorage):', e);
+    setSaveStatus({
+      state: 'error',
+      message: 'Save failed: ' + (e.message || 'Unknown error') + ' — Data is safe in browser cache.',
+      strippedColumns: stripped,
+    });
   }
 }
 
@@ -697,7 +734,7 @@ function rowToMonthData(row) {
   return {
     deals: row.deals || [],
     leads: row.leads || [],
-    floorLeads: [],
+    floorLeads: row.floor_leads || [],
     goals: row.goals || {},
     sp: row.salespeople || [],
     pga: row.pga_tiers || [],
@@ -731,6 +768,9 @@ function rowToMonthData(row) {
 function monthDataToRow(year, month, data) {
   return {
     year, month,
+    deals: data.deals || [],
+    leads: data.leads || [],
+    floor_leads: data.floorLeads || data.floor_leads || [],
     goals: data.goals || {},
     salespeople: data.sp || data.salespeople || [],
     pga_tiers: data.pga || data.pga_tiers || [],
@@ -751,7 +791,6 @@ function monthDataToRow(year, month, data) {
     fi_targets: data.fiTargets || data.fi_targets || {},
     gsm_bonus_config: data.gsmBonusConfig || data.gsm_bonus_config || {},
     history_counts: data.historyCounts || data.history_counts || {},
-    leads: data.leads || [],
     promos: data.promos || [],
     price_list: data.priceList || data.price_list || [],
     fi_menus: data.fiMenus || data.fi_menus || [],

@@ -1,4 +1,77 @@
 import React, { useState, useEffect } from 'react';
+import { subscribeSaveStatus } from '../lib/storage';
+
+/* ── Save Status Indicator (header pill) ── */
+export function SaveStatusIndicator() {
+  const [status, setStatus] = useState({ state: 'idle', message: '', strippedColumns: [] });
+  const [open, setOpen] = useState(false);
+  useEffect(() => subscribeSaveStatus(setStatus), []);
+  const config = {
+    idle:    { dot: '#94a3b8', bg: '#f1f5f9', label: 'IDLE',    text: 'No saves yet' },
+    saving:  { dot: '#0284c7', bg: '#e0f2fe', label: 'SAVING',  text: 'Writing to server…' },
+    saved:   { dot: '#16a34a', bg: '#dcfce7', label: 'SAVED',   text: 'All data persisted' },
+    partial: { dot: '#d97706', bg: '#fef3c7', label: 'PARTIAL', text: 'Some fields skipped — schema missing column(s)' },
+    error:   { dot: '#b91c1c', bg: '#fee2e2', label: 'ERROR',   text: 'Save failed — data is in browser cache only' },
+  };
+  const c = config[status.state] || config.idle;
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(!open)} title={status.message || c.text} style={{
+        display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px',
+        borderRadius: 14, border: 'none', cursor: 'pointer',
+        background: c.bg, fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: 700,
+        color: c.dot, letterSpacing: 0.5, transition: 'all .15s',
+      }}>
+        <span style={{
+          display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
+          background: c.dot, animation: status.state === 'saving' ? 'pulse 1s ease infinite' : 'none',
+        }} />
+        {c.label}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '100%', right: 0, marginTop: 6,
+          background: 'var(--card-bg)', border: '1px solid var(--border-primary)',
+          borderRadius: 8, padding: 14, minWidth: 280, maxWidth: 360,
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 1100,
+          fontFamily: "'Outfit', sans-serif", fontSize: 11, color: 'var(--text-primary)',
+        }}>
+          <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 11, fontWeight: 700, color: c.dot, letterSpacing: 1, marginBottom: 6 }}>{c.label}</div>
+          <div style={{ fontSize: 11, lineHeight: 1.5, marginBottom: 8 }}>{status.message || c.text}</div>
+          {status.lastSavedAt && (
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 8 }}>
+              Last save: {new Date(status.lastSavedAt).toLocaleString()}
+            </div>
+          )}
+          {status.strippedColumns && status.strippedColumns.length > 0 && (
+            <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 4, padding: 8, marginTop: 6 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>MISSING SUPABASE COLUMNS</div>
+              <div style={{ fontFamily: "'DM Mono', monospace", fontSize: 9, color: '#92400e', lineHeight: 1.5 }}>
+                {status.strippedColumns.join(', ')}
+              </div>
+              <div style={{ fontSize: 9, color: '#92400e', marginTop: 6, lineHeight: 1.4 }}>
+                Run the SQL setup script in Supabase to add these columns and enable full persistence. Data is currently stored in your browser only.
+              </div>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            <button onClick={() => setOpen(false)} style={{
+              background: 'none', border: '1px solid var(--border-primary)', borderRadius: 4,
+              padding: '4px 10px', fontFamily: "'DM Mono', monospace", fontSize: 9, fontWeight: 700,
+              color: 'var(--text-secondary)', cursor: 'pointer',
+            }}>CLOSE</button>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 /* ── Font references ── */
 export const FM = "'DM Mono', monospace";

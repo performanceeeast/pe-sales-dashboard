@@ -3,7 +3,7 @@ import { MONTHS, UNIT_TYPES, UNIT_COLORS, DEFAULT_SALESPEOPLE, DEFAULT_GOALS, DE
 import { loadMonth, saveMonth, loadYear, loadUsers, saveOneUser, loadLatestFiMenuConfigForStore, saveFiMenuConfigBackup, loadAllFiMenusForStore, saveFiMenusBackup } from './lib/storage';
 import { getSpUnits, getRepSpiffs } from './lib/calculations';
 import { canSeeTab, canManageUsers, ROLES } from './lib/auth';
-import { StatCard, TabTransition, styles, FM, FH, FB } from './components/SharedUI';
+import { StatCard, TabTransition, SaveStatusIndicator, styles, FM, FH, FB } from './components/SharedUI';
 import { useTheme } from './contexts/ThemeContext';
 import { useStore } from './contexts/StoreContext';
 import { useNotifications } from './contexts/NotificationContext';
@@ -602,6 +602,8 @@ export default function App() {
               </div>
             ))}
           </div>
+          {/* Save status pill — visible everywhere so user always knows if data is persisting */}
+          <SaveStatusIndicator />
           {/* Theme toggle */}
           <button onClick={toggleTheme} title={isDark ? 'Switch to light mode' : 'Switch to dark mode'} style={{
             background: 'var(--badge-bg)', border: '1px solid var(--border-primary)', borderRadius: 6,
