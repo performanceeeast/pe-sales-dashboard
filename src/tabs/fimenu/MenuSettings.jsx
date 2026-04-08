@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DEFAULT_LENDERS, DEFAULT_TERMS, PRODUCT_CATEGORIES, normalizeCategory } from '../../lib/fiMenuConstants';
 import { Modal, styles, FM, FH } from '../../components/SharedUI';
-import { readFiMenuConfigBackup } from '../../lib/storage';
+import { readFiMenuConfigBackup, scanAllFiMenuConfigs } from '../../lib/storage';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD, label: lbl } = styles;
 
@@ -305,6 +305,31 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
     setLocalPackages(Array.isArray(backup.packages) ? backup.packages : []);
   }
 
+  // Deep recovery modal state
+  const [deepScanResults, setDeepScanResults] = useState(null);
+  const [deepScanLoading, setDeepScanLoading] = useState(false);
+  async function runDeepScan() {
+    setDeepScanLoading(true);
+    try {
+      const results = await scanAllFiMenuConfigs(storeId);
+      setDeepScanResults(results);
+      setModal('deepRecover');
+    } catch (e) {
+      alert('Scan failed: ' + (e.message || e));
+    }
+    setDeepScanLoading(false);
+  }
+  function restoreFromScanResult(result) {
+    if (!result || !result.config) return;
+    const prodCount = Array.isArray(result.config.products) ? result.config.products.length : 0;
+    const pkgCount = Array.isArray(result.config.packages) ? result.config.packages.length : 0;
+    if (!confirm(`Restore ${prodCount} product(s) and ${pkgCount} package(s) from "${result.source}" to the current view? (You still need to click SAVE CHANGES to persist.)`)) return;
+    setLocalProducts(Array.isArray(result.config.products) ? result.config.products : []);
+    setLocalPackages(Array.isArray(result.config.packages) ? result.config.packages : []);
+    setModal(null);
+    setDeepScanResults(null);
+  }
+
   // ── Package CRUD (operates on localPackages — staged until SAVE CHANGES clicked) ──
   function savePackage(pkg) {
     const newId = pkg.id || Date.now().toString();
@@ -343,6 +368,7 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
             {productsDirty && (
               <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '3px 8px', borderRadius: 3 }}>UNSAVED CHANGES</span>
             )}
+            <button onClick={runDeepScan} disabled={deepScanLoading} title="Scan all localStorage and Supabase for F&I catalog data" style={{ ...b2, padding: '4px 10px', fontSize: 9, background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>{deepScanLoading ? 'SCANNING...' : 'DEEP RECOVER'}</button>
             <button onClick={recoverFromBackup} title="Restore catalog from browser backup" style={{ ...b2, padding: '4px 10px', fontSize: 9 }}>RECOVER</button>
             {productsDirty && (
               <button onClick={discardProductChanges} style={{ ...b2, padding: '4px 10px', fontSize: 9 }}>DISCARD</button>
@@ -550,6 +576,50 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
             onCancel={() => { setModal(null); setEditPackage(null); }}
           />
         )}
+      </Modal>
+
+      {/* ═══ DEEP RECOVER MODAL ═══ */}
+      <Modal open={modal === 'deepRecover'} onClose={() => { setModal(null); setDeepScanResults(null); }} title="F&I Catalog Deep Recovery" wide>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, padding: 12, fontFamily: FM, fontSize: 11, color: '#92400e', lineHeight: 1.5 }}>
+            Found {(deepScanResults || []).length} F&I config snapshot(s) across localStorage and Supabase.
+            Pick whichever has your full product catalog. Restoring only stages the data in the current view —
+            you still need to click SAVE CHANGES to persist it.
+          </div>
+          {(!deepScanResults || deepScanResults.length === 0) ? (
+            <div style={{ fontFamily: FM, fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: 20 }}>
+              No F&I configs with products or packages found anywhere. The data may have been lost before the backup system was added.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflow: 'auto' }}>
+              {deepScanResults.map((r, idx) => (
+                <div key={idx} style={{
+                  border: '1px solid var(--border-primary)', borderRadius: 6, padding: '10px 12px',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontFamily: FH, fontSize: 12, fontWeight: 700, wordBreak: 'break-all' }}>{r.source}</div>
+                    <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                      <span style={{ color: '#16a34a', fontWeight: 700 }}>{r.products}</span> product(s) •
+                      {' '}<span style={{ color: '#2563eb', fontWeight: 700 }}>{r.packages}</span> package(s)
+                    </div>
+                    {/* Show a few product names as a preview so the user can identify their data */}
+                    {r.config.products && r.config.products.length > 0 && (
+                      <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
+                        {r.config.products.slice(0, 5).map((p) => p.name).join(', ')}
+                        {r.config.products.length > 5 ? `, +${r.config.products.length - 5} more` : ''}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => restoreFromScanResult(r)} style={{ ...b1, padding: '6px 14px', fontSize: 10, flexShrink: 0 }}>RESTORE</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button onClick={() => { setModal(null); setDeepScanResults(null); }} style={b2}>CLOSE</button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

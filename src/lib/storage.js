@@ -36,6 +36,75 @@ export function readFiMenuConfigBackup(storeId) {
   } catch { return null; }
 }
 
+// Deep scan: look at EVERY localStorage key AND query Supabase for every monthly row,
+// return every fiMenuConfig we can find with its source. Used for data recovery when
+// the user's catalog has been silently lost somewhere in the pipeline.
+export async function scanAllFiMenuConfigs(storeId) {
+  const results = [];
+
+  // 1. Scan all localStorage keys
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        // peg-sales-<store>-<year>-<month>: monthly data blob
+        if (key.startsWith('peg-sales-')) {
+          const data = JSON.parse(raw);
+          const fi = data && data.fiMenuConfig;
+          if (fi && ((Array.isArray(fi.products) && fi.products.length > 0) || (Array.isArray(fi.packages) && fi.packages.length > 0))) {
+            results.push({
+              source: `localStorage: ${key}`,
+              products: Array.isArray(fi.products) ? fi.products.length : 0,
+              packages: Array.isArray(fi.packages) ? fi.packages.length : 0,
+              config: fi,
+            });
+          }
+        }
+        // peg-fi-menu-config-<store>: dedicated backup
+        if (key.startsWith('peg-fi-menu-config-')) {
+          const parsed = JSON.parse(raw);
+          const fi = parsed && parsed.config;
+          if (fi && ((Array.isArray(fi.products) && fi.products.length > 0) || (Array.isArray(fi.packages) && fi.packages.length > 0))) {
+            results.push({
+              source: `backup: ${key}` + (parsed.savedAt ? ` (saved ${parsed.savedAt})` : ''),
+              products: Array.isArray(fi.products) ? fi.products.length : 0,
+              packages: Array.isArray(fi.packages) ? fi.packages.length : 0,
+              config: fi,
+            });
+          }
+        }
+      } catch { /* ignore bad JSON */ }
+    }
+  } catch (e) { console.error('localStorage scan error:', e); }
+
+  // 2. Query Supabase for all monthly_data rows and extract their fi_menu_config
+  try {
+    let q = supabase.from('monthly_data').select('store_id,year,month,fi_menu_config');
+    if (storeId) q = q.eq('store_id', storeId);
+    const { data, error } = await q;
+    if (!error && data) {
+      data.forEach((row) => {
+        const fi = row.fi_menu_config;
+        if (fi && ((Array.isArray(fi.products) && fi.products.length > 0) || (Array.isArray(fi.packages) && fi.packages.length > 0))) {
+          results.push({
+            source: `Supabase: ${row.store_id || 'default'} ${row.year}-${String(row.month + 1).padStart(2, '0')}`,
+            products: Array.isArray(fi.products) ? fi.products.length : 0,
+            packages: Array.isArray(fi.packages) ? fi.packages.length : 0,
+            config: fi,
+          });
+        }
+      });
+    }
+  } catch (e) { console.error('Supabase scan error:', e); }
+
+  // Sort by total item count descending (most populated first)
+  results.sort((a, b) => (b.products + b.packages) - (a.products + a.packages));
+  return results;
+}
+
 // Merge local data into Supabase data when Supabase is missing populated fields.
 // This protects against cases where a save to Supabase failed (e.g. unknown column)
 // but the data was still written to localStorage — we don't want to lose it.
