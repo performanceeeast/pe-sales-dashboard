@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { DEFAULT_LENDERS, DEFAULT_TERMS, createEmptyMenu } from '../../lib/fiMenuConstants';
+import { DEFAULT_LENDERS, DEFAULT_TERMS, createEmptyMenu, getCategoryForUnitType, getDefaultsForCategory, normalizeCategory } from '../../lib/fiMenuConstants';
 import { calcDealSummary } from '../../lib/fiMenuCalc';
 import { canViewFiMenuCost } from '../../lib/auth';
 import { StatCard, styles, FM, FH } from '../../components/SharedUI';
@@ -112,7 +112,13 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
         <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
             <div><label style={lbl}>UNIT TYPE</label>
-              <select value={f.unitType} onChange={(e) => u('unitType', e.target.value)} style={inp}>
+              <select value={f.unitType} onChange={(e) => {
+                const newType = e.target.value;
+                const cat = getCategoryForUnitType(newType);
+                const defs = getDefaultsForCategory(config, cat);
+                // Auto-populate doc fee and tax rate from category defaults
+                sF((prev) => ({ ...prev, unitType: newType, docFee: defs.docFee, taxRate: defs.taxRate }));
+              }} style={inp}>
                 <option value="">— Select —</option>
                 {unitTypes.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
@@ -174,11 +180,22 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
         {showCost && <StatCard label="F&I GROSS" value={'$' + summary.productsGross.toLocaleString()} accent="#16a34a" />}
       </div>
 
-      {/* ── PACKAGE QUICK SELECT ── */}
+      {/* ── PACKAGE QUICK SELECT (filtered by unit type category) ── */}
       <div style={card}>
-        <div style={cH}>QUICK PACKAGE SELECT</div>
+        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>QUICK PACKAGE SELECT</span>
+          {f.unitType && <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Filtered by: {f.unitType}</span>}
+        </div>
         <div style={{ padding: 14, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {packages.map((pkg) => {
+          {(() => {
+            const activeCat = getCategoryForUnitType(f.unitType);
+            return packages.filter((pkg) => {
+              // No category = universal (shows everywhere). If unit type is unset, show all.
+              if (!f.unitType) return true;
+              const pkgCat = normalizeCategory(pkg.category);
+              return pkgCat === 'universal' || pkgCat === activeCat;
+            });
+          })().map((pkg) => {
             const active = f.selectedPackage === pkg.name;
             return (
               <button key={pkg.id} onClick={() => applyPackage(pkg)} style={{

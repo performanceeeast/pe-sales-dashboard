@@ -101,6 +101,31 @@ export const MENU_STATUSES = {
   printed: { label: 'PRINTED', color: '#7c3aed', bg: '#f5f3ff' },
 };
 
+// ── Product Categories ──
+// 'powersports' is the legacy name for 'offroad' — treated as an alias everywhere for backward compat.
+export const PRODUCT_CATEGORIES = [
+  { id: 'universal', label: 'Universal', color: '#6b7280', bg: 'var(--bg-tertiary)' },
+  { id: 'offroad', label: 'Offroad', color: '#b91c1c', bg: '#fef2f2' },
+  { id: 'marine', label: 'Marine', color: '#2563eb', bg: '#eff6ff' },
+  { id: 'pwc_jetboat', label: 'PWC / Jet Boat', color: '#0891b2', bg: '#ecfeff' },
+];
+
+// Normalize legacy 'powersports' → 'offroad' for display/filter purposes (does not mutate data)
+export function normalizeCategory(cat) {
+  if (cat === 'powersports') return 'offroad';
+  return cat || 'universal';
+}
+
+// Map a unit type (ATV, SXS, BOAT, PWC, etc.) to its F&I category
+export function getCategoryForUnitType(unitType) {
+  if (!unitType) return 'universal';
+  const u = String(unitType).toUpperCase();
+  if (u === 'PWC') return 'pwc_jetboat';
+  if (u === 'BOAT' || u === 'ENGINE REPOWER') return 'marine';
+  if (u === 'ATV' || u === 'SXS' || u === 'YOUTH') return 'offroad';
+  return 'universal';
+}
+
 // ── Store-Aware Product Filter ──
 export function getProductsForStore(storeConfig, allProducts) {
   const products = allProducts || DEFAULT_FI_PRODUCTS;
@@ -108,14 +133,30 @@ export function getProductsForStore(storeConfig, allProducts) {
 
   const types = storeConfig.unit_types;
   const hasMarine = types.some((t) => ['BOAT', 'ENGINE REPOWER'].includes(t));
-  const hasPowersports = types.some((t) => ['ATV', 'SXS', 'PWC', 'YOUTH'].includes(t));
+  const hasOffroad = types.some((t) => ['ATV', 'SXS', 'YOUTH'].includes(t));
+  const hasPwcJetBoat = types.some((t) => ['PWC'].includes(t));
 
   return products.filter((p) => {
-    if (p.category === 'universal') return true;
-    if (p.category === 'marine' && hasMarine) return true;
-    if (p.category === 'powersports' && hasPowersports) return true;
+    const cat = normalizeCategory(p.category);
+    if (cat === 'universal') return true;
+    if (cat === 'marine' && hasMarine) return true;
+    if (cat === 'offroad' && hasOffroad) return true;
+    if (cat === 'pwc_jetboat' && hasPwcJetBoat) return true;
     return false;
   });
+}
+
+// Get default doc fee and tax rate for a given unit type based on per-category settings
+export function getDefaultsForCategory(config, category) {
+  const cat = normalizeCategory(category);
+  const perCat = config?.defaultsPerCategory || {};
+  const fallbackDocFee = config?.defaultDocFee ?? 299;
+  const fallbackTaxRate = config?.defaultTaxRate ?? 0;
+  const catDefaults = perCat[cat] || {};
+  return {
+    docFee: catDefaults.docFee ?? fallbackDocFee,
+    taxRate: catDefaults.taxRate ?? fallbackTaxRate,
+  };
 }
 
 // ── Package Filter (remove products not available for this store) ──

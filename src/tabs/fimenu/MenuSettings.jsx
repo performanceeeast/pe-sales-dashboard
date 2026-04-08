@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DEFAULT_LENDERS, DEFAULT_TERMS } from '../../lib/fiMenuConstants';
+import { DEFAULT_LENDERS, DEFAULT_TERMS, PRODUCT_CATEGORIES, normalizeCategory } from '../../lib/fiMenuConstants';
 import { Modal, styles, FM, FH } from '../../components/SharedUI';
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, th: TH, td: TD, label: lbl } = styles;
@@ -23,6 +23,16 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
   const [localTerms, setLocalTerms] = useState(defaultTerms.join(', '));
   const [localLenders, setLocalLenders] = useState(lenders.join(', '));
   const [localDisclaimer, setLocalDisclaimer] = useState(disclaimer);
+  // Per-category defaults: { offroad: { docFee: '299', taxRate: '6.75' }, ... }
+  const [localCatDefaults, setLocalCatDefaults] = useState(() => {
+    const dpc = (fiMenuConfig && fiMenuConfig.defaultsPerCategory) || {};
+    const out = {};
+    PRODUCT_CATEGORIES.forEach((c) => {
+      const v = dpc[c.id] || {};
+      out[c.id] = { docFee: v.docFee != null ? String(v.docFee) : '', taxRate: v.taxRate != null ? String(v.taxRate) : '' };
+    });
+    return out;
+  });
 
   // Sync local state when config changes from outside (e.g. month change)
   useEffect(() => { setLocalDocFee(String(config.defaultDocFee ?? 299)); }, [config.defaultDocFee]);
@@ -30,6 +40,15 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
   useEffect(() => { setLocalTerms((config.defaultTerms || DEFAULT_TERMS).join(', ')); }, [config.defaultTerms]);
   useEffect(() => { setLocalLenders((config.lenders || DEFAULT_LENDERS).join(', ')); }, [config.lenders]);
   useEffect(() => { setLocalDisclaimer(config.disclaimer || 'All prices and payments are estimates. Final terms subject to lender approval.'); }, [config.disclaimer]);
+  useEffect(() => {
+    const dpc = config.defaultsPerCategory || {};
+    const out = {};
+    PRODUCT_CATEGORIES.forEach((c) => {
+      const v = dpc[c.id] || {};
+      out[c.id] = { docFee: v.docFee != null ? String(v.docFee) : '', taxRate: v.taxRate != null ? String(v.taxRate) : '' };
+    });
+    setLocalCatDefaults(out);
+  }, [config.defaultsPerCategory]);
 
   function updateConfig(updates) {
     // Always merge against the LATEST fiMenuConfig from props (not a stale closure)
@@ -92,7 +111,7 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
                   onMouseEnter={(e) => e.currentTarget.style.background = 'var(--row-hover)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ ...TD, fontFamily: FH, fontWeight: 600, fontSize: 11 }}>{p.name}</td>
-                  <td style={TD}><span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: p.category === 'marine' ? '#eff6ff' : p.category === 'powersports' ? '#fef2f2' : 'var(--bg-tertiary)', color: p.category === 'marine' ? '#2563eb' : p.category === 'powersports' ? '#b91c1c' : 'var(--text-muted)' }}>{p.category?.toUpperCase()}</span></td>
+                  <td style={TD}>{(() => { const cat = PRODUCT_CATEGORIES.find((c) => c.id === normalizeCategory(p.category)) || PRODUCT_CATEGORIES[0]; return <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: cat.bg, color: cat.color }}>{cat.label.toUpperCase()}</span>; })()}</td>
                   <td style={{ ...TD, fontFamily: FM, fontWeight: 700 }}>${(p.retailPrice || 0).toLocaleString()}</td>
                   <td style={{ ...TD, fontFamily: FM, color: 'var(--text-secondary)' }}>${(p.cost || 0).toLocaleString()}</td>
                   <td style={{ ...TD, fontFamily: FM, fontWeight: 700, color: '#16a34a' }}>${((p.retailPrice || 0) - (p.cost || 0)).toLocaleString()}</td>
@@ -112,7 +131,7 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
       <div style={card}>
         <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span>PACKAGE TEMPLATES ({packages.length})</span>
-          <button onClick={() => { setEditPackage({ id: '', name: '', description: '', products: [], color: '#6b7280', displayOrder: packages.length + 1, recommended: false }); setModal('editPackage'); }} style={{ ...b1, padding: '4px 12px', fontSize: 9 }}>+ ADD PACKAGE</button>
+          <button onClick={() => { setEditPackage({ id: '', name: '', description: '', products: [], color: '#6b7280', displayOrder: packages.length + 1, recommended: false, category: 'universal' }); setModal('editPackage'); }} style={{ ...b1, padding: '4px 12px', fontSize: 9 }}>+ ADD PACKAGE</button>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {packages.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO PACKAGES CONFIGURED</div>}
@@ -121,8 +140,9 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 4, height: 32, borderRadius: 2, background: pkg.color || '#6b7280' }} />
                 <div>
-                  <div style={{ fontFamily: FH, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontFamily: FH, fontSize: 13, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     {pkg.name}
+                    {(() => { const cat = PRODUCT_CATEGORIES.find((c) => c.id === normalizeCategory(pkg.category)) || PRODUCT_CATEGORIES[0]; return <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, padding: '1px 6px', borderRadius: 3, background: cat.bg, color: cat.color }}>{cat.label.toUpperCase()}</span>; })()}
                     {pkg.recommended && <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '1px 6px', borderRadius: 3 }}>RECOMMENDED</span>}
                   </div>
                   <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>
@@ -145,10 +165,52 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
           <span>DEFAULT SETTINGS</span>
           <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Changes save when you click out of a field</span>
         </div>
-        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Per-category doc fee and tax rate */}
+          <div>
+            <label style={{ ...lbl, marginBottom: 6 }}>DOC FEE & TAX RATE BY CATEGORY</label>
+            <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginBottom: 8 }}>
+              Auto-populates on menu builder based on unit type. Leave blank to use the legacy default below.
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 8, alignItems: 'center' }}>
+              <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 1 }}>CATEGORY</div>
+              <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 1, textAlign: 'center' }}>DOC FEE ($)</div>
+              <div style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: 1, textAlign: 'center' }}>TAX RATE (%)</div>
+              {PRODUCT_CATEGORIES.filter((c) => c.id !== 'universal').map((cat) => {
+                const current = (config.defaultsPerCategory || {})[cat.id] || {};
+                const localFee = (localCatDefaults[cat.id] && localCatDefaults[cat.id].docFee) || '';
+                const localTax = (localCatDefaults[cat.id] && localCatDefaults[cat.id].taxRate) || '';
+                const setFee = (v) => setLocalCatDefaults((p) => ({ ...p, [cat.id]: { ...(p[cat.id] || {}), docFee: v } }));
+                const setTax = (v) => setLocalCatDefaults((p) => ({ ...p, [cat.id]: { ...(p[cat.id] || {}), taxRate: v } }));
+                const saveFee = () => {
+                  const parsed = localFee === '' ? undefined : (parseInt(localFee) || 0);
+                  const existing = config.defaultsPerCategory || {};
+                  if (parsed === current.docFee) return;
+                  updateConfig({ defaultsPerCategory: { ...existing, [cat.id]: { ...(existing[cat.id] || {}), docFee: parsed } } });
+                };
+                const saveTax = () => {
+                  const parsed = localTax === '' ? undefined : (parseFloat(localTax) || 0);
+                  const existing = config.defaultsPerCategory || {};
+                  if (parsed === current.taxRate) return;
+                  updateConfig({ defaultsPerCategory: { ...existing, [cat.id]: { ...(existing[cat.id] || {}), taxRate: parsed } } });
+                };
+                return (
+                  <React.Fragment key={cat.id}>
+                    <div style={{ fontFamily: FH, fontSize: 11, fontWeight: 700, color: cat.color }}>{cat.label.toUpperCase()}</div>
+                    <input type="number" value={localFee} onChange={(e) => setFee(e.target.value)} onBlur={saveFee} style={{ ...inp, textAlign: 'center' }} placeholder="299" />
+                    <input type="number" step="0.01" value={localTax} onChange={(e) => setTax(e.target.value)} onBlur={saveTax} style={{ ...inp, textAlign: 'center' }} placeholder="0.00" />
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border-secondary)', paddingTop: 14 }}>
+            <label style={{ ...lbl, marginBottom: 6 }}>FALLBACK DEFAULTS (used when category-specific not set)</label>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
             <div>
-              <label style={lbl}>DEFAULT DOC FEE ($)</label>
+              <label style={lbl}>FALLBACK DOC FEE ($)</label>
               <input
                 type="number"
                 value={localDocFee}
@@ -158,7 +220,7 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
               />
             </div>
             <div>
-              <label style={lbl}>DEFAULT TAX RATE (%)</label>
+              <label style={lbl}>FALLBACK TAX RATE (%)</label>
               <input
                 type="number"
                 step="0.01"
@@ -210,10 +272,8 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
               <div><label style={lbl}>RETAIL PRICE ($)</label><input type="number" value={editProduct.retailPrice || ''} onChange={(e) => setEditProduct({ ...editProduct, retailPrice: parseInt(e.target.value) || 0 })} style={inp} /></div>
               <div><label style={lbl}>COST ($)</label><input type="number" value={editProduct.cost || ''} onChange={(e) => setEditProduct({ ...editProduct, cost: parseInt(e.target.value) || 0 })} style={inp} /></div>
               <div><label style={lbl}>CATEGORY</label>
-                <select value={editProduct.category || 'universal'} onChange={(e) => setEditProduct({ ...editProduct, category: e.target.value })} style={inp}>
-                  <option value="universal">Universal</option>
-                  <option value="powersports">Powersports</option>
-                  <option value="marine">Marine</option>
+                <select value={normalizeCategory(editProduct.category)} onChange={(e) => setEditProduct({ ...editProduct, category: e.target.value })} style={inp}>
+                  {PRODUCT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                 </select>
               </div>
             </div>
@@ -245,7 +305,12 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div><label style={lbl}>PACKAGE NAME</label><input value={editPackage.name} onChange={(e) => setEditPackage({ ...editPackage, name: e.target.value })} style={inp} /></div>
             <div><label style={lbl}>DESCRIPTION</label><input value={editPackage.description || ''} onChange={(e) => setEditPackage({ ...editPackage, description: e.target.value })} style={inp} /></div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10 }}>
+              <div><label style={lbl}>CATEGORY</label>
+                <select value={normalizeCategory(editPackage.category)} onChange={(e) => setEditPackage({ ...editPackage, category: e.target.value })} style={inp}>
+                  {PRODUCT_CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+              </div>
               <div><label style={lbl}>DISPLAY ORDER</label><input type="number" value={editPackage.displayOrder || ''} onChange={(e) => setEditPackage({ ...editPackage, displayOrder: parseInt(e.target.value) || 0 })} style={inp} /></div>
               <div><label style={lbl}>COLOR</label><input type="color" value={editPackage.color || '#6b7280'} onChange={(e) => setEditPackage({ ...editPackage, color: e.target.value })} style={{ ...inp, padding: 4, height: 36 }} /></div>
             </div>
@@ -254,8 +319,17 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
             </label>
             <div>
               <label style={lbl}>INCLUDED PRODUCTS</label>
+              <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginBottom: 6 }}>
+                Showing products matching the selected category (plus Universal).
+              </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
-                {products.map((p) => {
+                {(() => {
+                  const pkgCat = normalizeCategory(editPackage.category);
+                  return products.filter((p) => {
+                    const pCat = normalizeCategory(p.category);
+                    return pCat === 'universal' || pCat === pkgCat;
+                  });
+                })().map((p) => {
                   const included = (editPackage.products || []).includes(p.id);
                   return (
                     <label key={p.id} onClick={() => {
