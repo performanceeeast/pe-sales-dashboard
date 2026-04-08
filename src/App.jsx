@@ -361,26 +361,55 @@ export default function App() {
     return { total: traffic, sold: deals.length };
   }, [floorDailyLeadCounts, floorBulkLeadCounts, deals]);
 
+  // Helper: get the repSalesHistory override for a month (admin-entered historical data)
+  // Shape: { [repId]: { ATV: 5, SXS: 3, ... } }
+  function getRepHistoryForMonth(mIdx) {
+    const mData = yearlyMonthData && yearlyMonthData[mIdx];
+    return (mData && mData.repSalesHistory) || {};
+  }
+
   const yearlyMonthSales = useMemo(() => MONTHS.map((mName, mIdx) => {
     const mDeals = yearlyDeals.filter((d) => d._month === mIdx);
     const counts = { month: mName.substring(0, 3), monthIdx: mIdx, ...Object.fromEntries(unitTypes.map((u) => [u, 0])), total: 0 };
     mDeals.forEach((d) => unitTypes.forEach((u) => { counts[u] += d.units?.[u] || 0; }));
-    counts.total = unitTypes.reduce((s, u) => s + counts[u], 0); return counts;
-  }), [yearlyDeals]);
+    // Layer history overrides on top (admin manual backfill)
+    const hist = getRepHistoryForMonth(mIdx);
+    Object.values(hist).forEach((repUnits) => {
+      if (!repUnits) return;
+      unitTypes.forEach((u) => { counts[u] += repUnits[u] || 0; });
+    });
+    counts.total = unitTypes.reduce((s, u) => s + counts[u], 0);
+    return counts;
+  }), [yearlyDeals, yearlyMonthData, unitTypes]);
 
   const ytdTotal = useMemo(() => {
     const t = { ...Object.fromEntries(unitTypes.map((u) => [u, 0])), total: 0 };
     yearlyDeals.forEach((d) => unitTypes.forEach((u) => { t[u] += d.units?.[u] || 0; }));
-    t.total = unitTypes.reduce((s, u) => s + t[u], 0); return t;
-  }, [yearlyDeals]);
+    // Add history overrides
+    MONTHS.forEach((_, mIdx) => {
+      const hist = getRepHistoryForMonth(mIdx);
+      Object.values(hist).forEach((repUnits) => {
+        if (!repUnits) return;
+        unitTypes.forEach((u) => { t[u] += repUnits[u] || 0; });
+      });
+    });
+    t.total = unitTypes.reduce((s, u) => s + t[u], 0);
+    return t;
+  }, [yearlyDeals, yearlyMonthData, unitTypes]);
 
   const yearlyRepPerf = useMemo(() => act.map((sp) => {
     const rd = yearlyDeals.filter((d) => d.salesperson === sp.id);
     const counts = { ...Object.fromEntries(unitTypes.map((u) => [u, 0])), total: 0 };
     rd.forEach((d) => unitTypes.forEach((u) => { counts[u] += d.units?.[u] || 0; }));
+    // Add history overrides for this rep
+    MONTHS.forEach((_, mIdx) => {
+      const hist = getRepHistoryForMonth(mIdx);
+      const repUnits = hist[sp.id];
+      if (repUnits) unitTypes.forEach((u) => { counts[u] += repUnits[u] || 0; });
+    });
     counts.total = unitTypes.reduce((s, u) => s + counts[u], 0);
     return { ...sp, ...counts };
-  }).sort((a, b) => b.total - a.total), [yearlyDeals, act]);
+  }).sort((a, b) => b.total - a.total), [yearlyDeals, yearlyMonthData, act, unitTypes]);
 
   // Scroll to top on tab change
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [view]);
@@ -439,7 +468,7 @@ export default function App() {
       {showAdmin && canManageUsers(currentUser) && <AdminPanel storeId={storeId} storeConfig={storeConfig} />}
 
       {/* HOME — Dashboard (preserved) */}
-      {!showAdmin && view === 'dashboard' && <DashboardTab month={month} year={year} goals={goals} tot={tot} tTgt={tTgt} tStr={tStr} ls={ls} floorTrafficStats={floorTrafficStats} yearlyMonthSales={yearlyMonthSales} ytdTotal={ytdTotal} yearlyRepPerf={yearlyRepPerf} notes={notes} saveNotes={saveNotes} meetingNotes={meetingNotes} saveMeetingNotes={saveMeetingNotes} deals={deals} currentUser={currentUser} act={act} updateDeal={updateDeal} unitTypes={unitTypes} setView={setView} setSalesSub={setSalesSub} setModal={setModal} pgaTiers={pgaTiers} yearlyDeals={yearlyDeals} floorDailyLeadCounts={floorDailyLeadCounts} contests={contests} saveCT={saveCT} />}
+      {!showAdmin && view === 'dashboard' && <DashboardTab month={month} year={year} goals={goals} tot={tot} tTgt={tTgt} tStr={tStr} ls={ls} floorTrafficStats={floorTrafficStats} yearlyMonthSales={yearlyMonthSales} ytdTotal={ytdTotal} yearlyRepPerf={yearlyRepPerf} notes={notes} saveNotes={saveNotes} meetingNotes={meetingNotes} saveMeetingNotes={saveMeetingNotes} deals={deals} currentUser={currentUser} act={act} updateDeal={updateDeal} unitTypes={unitTypes} setView={setView} setSalesSub={setSalesSub} setModal={setModal} pgaTiers={pgaTiers} yearlyDeals={yearlyDeals} floorDailyLeadCounts={floorDailyLeadCounts} contests={contests} saveCT={saveCT} yearlyMonthData={yearlyMonthData} saveHistoryMonth={saveHistoryMonth} reloadYear={reloadYearData} />}
 
       {/* SALES — Deals + Leaderboard + History (consolidated) */}
       {!showAdmin && view === 'sales' && (

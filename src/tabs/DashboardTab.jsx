@@ -16,11 +16,42 @@ export default function DashboardTab({
   unitTypes: propUnitTypes,
   setView, setSalesSub, setModal, pgaTiers, yearlyDeals,
   floorDailyLeadCounts, contests, saveCT,
+  yearlyMonthData, saveHistoryMonth, reloadYear,
 }) {
   const UNIT_TYPES = propUnitTypes || DEFAULT_UNIT_TYPES;
   const [mtgDate, setMtgDate] = useState(new Date().toISOString().split('T')[0]);
   const [mtgText, setMtgText] = useState('');
   const [dashSub, setDashSub] = useState('monthly');
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'gsm' || currentUser?.role === 'sales_finance_mgr';
+  // Manual backfill editor state: { monthIdx, draft: { [repId]: { ATV: 5, ... } } }
+  const [backfillEditing, setBackfillEditing] = useState(null);
+  const startBackfill = (mIdx) => {
+    const existing = (yearlyMonthData && yearlyMonthData[mIdx] && yearlyMonthData[mIdx].repSalesHistory) || {};
+    const draft = {};
+    (act || []).forEach((sp) => {
+      const rec = existing[sp.id] || {};
+      draft[sp.id] = Object.fromEntries(UNIT_TYPES.map((u) => [u, rec[u] || 0]));
+    });
+    setBackfillEditing({ monthIdx: mIdx, draft });
+  };
+  const updateBackfillCell = (repId, unit, value) => {
+    setBackfillEditing((prev) => prev && ({
+      ...prev,
+      draft: { ...prev.draft, [repId]: { ...(prev.draft[repId] || {}), [unit]: parseInt(value) || 0 } },
+    }));
+  };
+  const saveBackfill = async () => {
+    if (!backfillEditing || !saveHistoryMonth) return;
+    // Strip empty rows to keep storage clean
+    const cleaned = {};
+    Object.entries(backfillEditing.draft).forEach(([repId, units]) => {
+      const hasAny = Object.values(units).some((v) => (v || 0) > 0);
+      if (hasAny) cleaned[repId] = units;
+    });
+    await saveHistoryMonth(year, backfillEditing.monthIdx, { repSalesHistory: cleaned });
+    setBackfillEditing(null);
+    if (reloadYear) await reloadYear();
+  };
   const canManageContests = currentUser?.role === 'admin' || currentUser?.role === 'gsm' || currentUser?.role === 'sales_finance_mgr';
   const toggleContestWinner = (contestId, repId) => {
     if (!canManageContests || !saveCT) return;
@@ -428,6 +459,69 @@ export default function DashboardTab({
               ))}
             </div>
           </div>
+
+          {/* Manual Rep Performance Backfill — admin only */}
+          {isAdmin && (
+            <div style={{ ...card, marginBottom: 16 }}>
+              <div style={{ ...cH, background: '#eff6ff', borderBottomColor: '#bfdbfe', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#2563eb' }}>MANUAL REP PERFORMANCE BACKFILL — {year}</span>
+                {!backfillEditing && <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Click a past month to enter historical data</span>}
+              </div>
+              {!backfillEditing && (
+                <div style={{ padding: 14, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {MONTHS.map((mName, mIdx) => {
+                    if (mIdx >= month) return null; // Only past months
+                    const hist = (yearlyMonthData && yearlyMonthData[mIdx] && yearlyMonthData[mIdx].repSalesHistory) || {};
+                    const hasData = Object.keys(hist).length > 0;
+                    return (
+                      <button key={mIdx} onClick={() => startBackfill(mIdx)} style={{
+                        padding: '6px 14px', borderRadius: 4, border: hasData ? '1px solid #16a34a' : '1px solid var(--border-primary)',
+                        background: hasData ? '#dcfce7' : 'var(--card-bg)',
+                        fontFamily: FM, fontSize: 10, fontWeight: 700,
+                        color: hasData ? '#16a34a' : 'var(--text-secondary)', cursor: 'pointer',
+                      }}>{hasData ? '✓ ' : ''}{mName.substring(0, 3).toUpperCase()}</button>
+                    );
+                  })}
+                </div>
+              )}
+              {backfillEditing && (
+                <div style={{ padding: 14 }}>
+                  <div style={{ fontFamily: FH, fontSize: 12, fontWeight: 700, color: '#2563eb', marginBottom: 10 }}>
+                    {MONTHS[backfillEditing.monthIdx].toUpperCase()} {year} — Enter units sold per rep
+                  </div>
+                  <div style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)', marginBottom: 10 }}>
+                    These counts are added on top of any deals logged for this month. Use this to bring prior months up to date.
+                  </div>
+                  <div style={{ overflow: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead><tr><th style={TH}>Rep</th>{UNIT_TYPES.map((u) => <th key={u} style={{ ...TH, textAlign: 'center', color: UNIT_COLORS[u] }}>{u}</th>)}<th style={TH}>Total</th></tr></thead>
+                      <tbody>
+                        {(act || []).map((sp) => {
+                          const row = backfillEditing.draft[sp.id] || {};
+                          const rowTotal = UNIT_TYPES.reduce((s, u) => s + (row[u] || 0), 0);
+                          return (
+                            <tr key={sp.id}>
+                              <td style={{ ...TD, fontFamily: FH, fontWeight: 700 }}>{sp.name}</td>
+                              {UNIT_TYPES.map((u) => (
+                                <td key={u} style={{ ...TD, textAlign: 'center' }}>
+                                  <input type="number" min="0" value={row[u] || 0} onChange={(e) => updateBackfillCell(sp.id, u, e.target.value)} style={{ ...inp, width: 55, textAlign: 'center', padding: '4px 2px', fontSize: 12, fontWeight: 700 }} />
+                                </td>
+                              ))}
+                              <td style={{ ...TD, fontFamily: FH, fontWeight: 700, color: 'var(--brand-red)', textAlign: 'center' }}>{rowTotal}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+                    <button onClick={() => setBackfillEditing(null)} style={b2}>CANCEL</button>
+                    <button onClick={saveBackfill} style={{ ...b1, background: '#2563eb' }}>SAVE {MONTHS[backfillEditing.monthIdx].toUpperCase()} DATA</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Yearly Rep Performance */}
           <div style={card}>

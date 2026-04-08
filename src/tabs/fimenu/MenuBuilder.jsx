@@ -216,7 +216,8 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
         </div>
       </div>
 
-      {/* ── OUTBOARD WARRANTY SELECTOR ── */}
+      {/* ── OUTBOARD WARRANTY SELECTOR — Marine units only ── */}
+      {getCategoryForUnitType(f.unitType) === 'marine' && (
       <div style={card}>
         <div style={{ ...cH, background: '#eff6ff', borderBottomColor: '#bfdbfe' }}>
           <span style={{ color: '#2563eb' }}>OUTBOARD EXTENDED WARRANTY</span>
@@ -301,15 +302,28 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
           )}
         </div>
       </div>
+      )}
 
-      {/* ── PRODUCT SELECTION ── */}
+      {/* ── PRODUCT SELECTION — filtered by unit type category ── */}
       <div style={card}>
-        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
           <span>F&I PRODUCTS ({f.selectedProducts.length} selected)</span>
-          {showCost && <span style={{ fontFamily: FM, fontSize: 10, color: '#16a34a', fontWeight: 700 }}>GROSS: ${summary.productsGross.toLocaleString()}</span>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {f.unitType && <span style={{ fontFamily: FM, fontSize: 9, color: 'var(--text-muted)' }}>Filtered by: {f.unitType}</span>}
+            {showCost && <span style={{ fontFamily: FM, fontSize: 10, color: '#16a34a', fontWeight: 700 }}>GROSS: ${summary.productsGross.toLocaleString()}</span>}
+          </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {products.map((p) => {
+          {(() => {
+            // Filter products by the selected unit type's category.
+            // Universal products always show. If no unit type selected yet, show all.
+            const activeCat = getCategoryForUnitType(f.unitType);
+            return products.filter((p) => {
+              if (!f.unitType) return true;
+              const pCat = normalizeCategory(p.category);
+              return pCat === 'universal' || pCat === activeCat;
+            });
+          })().map((p) => {
             const selected = f.selectedProducts.find((sp) => sp.productId === p.id);
             const isSelected = !!selected;
             return (
