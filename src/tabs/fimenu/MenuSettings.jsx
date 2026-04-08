@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DEFAULT_LENDERS, DEFAULT_TERMS, PRODUCT_CATEGORIES, normalizeCategory } from '../../lib/fiMenuConstants';
 import { Modal, styles, FM, FH } from '../../components/SharedUI';
 
@@ -136,6 +136,11 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
   const [localTerms, setLocalTerms] = useState(defaultTerms.join(', '));
   const [localLenders, setLocalLenders] = useState(lenders.join(', '));
   const [localDisclaimer, setLocalDisclaimer] = useState(disclaimer);
+  // Staged local copies of products and packages — every add/edit/delete updates
+  // these, and only the SAVE CHANGES button commits them back to fiMenuConfig.
+  // This protects manually-entered data from silent save failures.
+  const [localProducts, setLocalProducts] = useState(() => (fiMenuConfig && fiMenuConfig.products) || products || []);
+  const [localPackages, setLocalPackages] = useState(() => (fiMenuConfig && fiMenuConfig.packages) || packages || []);
   // Per-category defaults: { offroad: { docFee: '299', taxRate: '6.75' }, ... }
   const [localCatDefaults, setLocalCatDefaults] = useState(() => {
     const dpc = (fiMenuConfig && fiMenuConfig.defaultsPerCategory) || {};
@@ -162,6 +167,48 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
     });
     setLocalCatDefaults(out);
   }, [config.defaultsPerCategory]);
+
+  // Track what remote was the last time we synced local to it. If remote changes externally
+  // (month switch, external save) AND local matches our last-synced snapshot, adopt the new
+  // remote. If local has diverged (user has unsaved edits), keep the user's edits.
+  const lastSyncedProductsRef = useRef(JSON.stringify((fiMenuConfig && fiMenuConfig.products) || []));
+  const lastSyncedPackagesRef = useRef(JSON.stringify((fiMenuConfig && fiMenuConfig.packages) || []));
+  useEffect(() => {
+    const remote = (fiMenuConfig && fiMenuConfig.products) || [];
+    const remoteStr = JSON.stringify(remote);
+    if (remoteStr === lastSyncedProductsRef.current) return; // no external change
+    // Remote changed. Adopt only if local matches what we last synced.
+    setLocalProducts((prev) => {
+      const localStr = JSON.stringify(prev);
+      if (localStr === lastSyncedProductsRef.current) {
+        lastSyncedProductsRef.current = remoteStr;
+        return remote;
+      }
+      // User has unsaved edits — keep them. Baseline stays at old.
+      return prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fiMenuConfig?.products]);
+  useEffect(() => {
+    const remote = (fiMenuConfig && fiMenuConfig.packages) || [];
+    const remoteStr = JSON.stringify(remote);
+    if (remoteStr === lastSyncedPackagesRef.current) return;
+    setLocalPackages((prev) => {
+      const localStr = JSON.stringify(prev);
+      if (localStr === lastSyncedPackagesRef.current) {
+        lastSyncedPackagesRef.current = remoteStr;
+        return remote;
+      }
+      return prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fiMenuConfig?.packages]);
+
+  // Dirty state computations (by deep comparison)
+  const remoteProducts = (fiMenuConfig && fiMenuConfig.products) || [];
+  const remotePackages = (fiMenuConfig && fiMenuConfig.packages) || [];
+  const productsDirty = JSON.stringify(localProducts) !== JSON.stringify(remoteProducts);
+  const packagesDirty = JSON.stringify(localPackages) !== JSON.stringify(remotePackages);
 
   function updateConfig(updates) {
     // Always merge against the LATEST fiMenuConfig from props (not a stale closure)
@@ -214,58 +261,85 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
     return false;
   })();
 
-  // ── Product CRUD ──
-  // Always read products list from fiMenuConfig at call time so we don't operate
-  // on a stale derived `products` prop that may be the fallback default list.
+  // ── Product CRUD (operates on localProducts — staged until SAVE CHANGES clicked) ──
   function saveProduct(p) {
-    const currentProducts = (fiMenuConfig && fiMenuConfig.products) ? fiMenuConfig.products : products;
-    const existing = currentProducts.find((x) => x.id === p.id);
-    const updated = existing
-      ? currentProducts.map((x) => x.id === p.id ? p : x)
-      : [...currentProducts, { ...p, id: p.id || Date.now().toString() }];
-    saveFiMenuConfig({ ...(fiMenuConfig || {}), products: updated });
+    const newId = p.id || Date.now().toString();
+    const product = { ...p, id: newId };
+    setLocalProducts((prev) => {
+      const existing = prev.find((x) => x.id === newId);
+      return existing ? prev.map((x) => x.id === newId ? product : x) : [...prev, product];
+    });
     setEditProduct(null);
     setModal(null);
   }
 
   function deleteProduct(id) {
-    if (!confirm('Remove this product?')) return;
-    const currentProducts = (fiMenuConfig && fiMenuConfig.products) ? fiMenuConfig.products : products;
-    saveFiMenuConfig({ ...(fiMenuConfig || {}), products: currentProducts.filter((p) => p.id !== id) });
+    if (!confirm('Stage this product for removal? (click SAVE CHANGES to persist)')) return;
+    setLocalProducts((prev) => prev.filter((p) => p.id !== id));
   }
 
-  // ── Package CRUD ──
+  function commitProducts() {
+    saveFiMenuConfig({ ...(fiMenuConfig || {}), products: localProducts });
+    lastSyncedProductsRef.current = JSON.stringify(localProducts);
+  }
+
+  function discardProductChanges() {
+    if (!confirm('Discard all unsaved product changes?')) return;
+    setLocalProducts(remoteProducts);
+    lastSyncedProductsRef.current = JSON.stringify(remoteProducts);
+  }
+
+  // ── Package CRUD (operates on localPackages — staged until SAVE CHANGES clicked) ──
   function savePackage(pkg) {
-    const currentPackages = (fiMenuConfig && fiMenuConfig.packages) ? fiMenuConfig.packages : packages;
-    const existing = currentPackages.find((x) => x.id === pkg.id);
-    const updated = existing
-      ? currentPackages.map((x) => x.id === pkg.id ? pkg : x)
-      : [...currentPackages, { ...pkg, id: pkg.id || Date.now().toString() }];
-    saveFiMenuConfig({ ...(fiMenuConfig || {}), packages: updated });
+    const newId = pkg.id || Date.now().toString();
+    const packageObj = { ...pkg, id: newId };
+    setLocalPackages((prev) => {
+      const existing = prev.find((x) => x.id === newId);
+      return existing ? prev.map((x) => x.id === newId ? packageObj : x) : [...prev, packageObj];
+    });
     setEditPackage(null);
     setModal(null);
   }
 
   function deletePackage(id) {
-    if (!confirm('Remove this package?')) return;
-    const currentPackages = (fiMenuConfig && fiMenuConfig.packages) ? fiMenuConfig.packages : packages;
-    saveFiMenuConfig({ ...(fiMenuConfig || {}), packages: currentPackages.filter((p) => p.id !== id) });
+    if (!confirm('Stage this package for removal? (click SAVE CHANGES to persist)')) return;
+    setLocalPackages((prev) => prev.filter((p) => p.id !== id));
+  }
+
+  function commitPackages() {
+    saveFiMenuConfig({ ...(fiMenuConfig || {}), packages: localPackages });
+    lastSyncedPackagesRef.current = JSON.stringify(localPackages);
+  }
+
+  function discardPackageChanges() {
+    if (!confirm('Discard all unsaved package changes?')) return;
+    setLocalPackages(remotePackages);
+    lastSyncedPackagesRef.current = JSON.stringify(remotePackages);
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* ═══ PRODUCTS ═══ */}
       <div style={card}>
-        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>F&I PRODUCT CATALOG ({products.length})</span>
-          <button onClick={() => { setEditProduct({ id: '', name: '', description: '', category: 'universal', retailPrice: 0, cost: 0, term: '', taxable: false, financeable: true, provider: '' }); setModal('editProduct'); }} style={{ ...b1, padding: '4px 12px', fontSize: 9 }}>+ ADD PRODUCT</button>
+        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span>F&I PRODUCT CATALOG ({localProducts.length})</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {productsDirty && (
+              <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '3px 8px', borderRadius: 3 }}>UNSAVED CHANGES</span>
+            )}
+            {productsDirty && (
+              <button onClick={discardProductChanges} style={{ ...b2, padding: '4px 10px', fontSize: 9 }}>DISCARD</button>
+            )}
+            <button onClick={commitProducts} disabled={!productsDirty} style={{ ...b1, padding: '4px 12px', fontSize: 9, background: '#16a34a', opacity: productsDirty ? 1 : 0.4, cursor: productsDirty ? 'pointer' : 'default' }}>SAVE CHANGES</button>
+            <button onClick={() => { setEditProduct({ id: '', name: '', description: '', category: 'universal', retailPrice: 0, cost: 0, term: '', taxable: false, financeable: true, provider: '' }); setModal('editProduct'); }} style={{ ...b1, padding: '4px 12px', fontSize: 9 }}>+ ADD PRODUCT</button>
+          </div>
         </div>
         <div style={{ overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr>{['Product', 'Category', 'Retail', 'Cost', 'Gross', 'Provider', 'Term', ''].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
             <tbody>
-              {products.length === 0 && <tr><td colSpan={8} style={{ ...TD, padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO PRODUCTS CONFIGURED</td></tr>}
-              {products.map((p) => (
+              {localProducts.length === 0 && <tr><td colSpan={8} style={{ ...TD, padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO PRODUCTS CONFIGURED</td></tr>}
+              {localProducts.map((p) => (
                 <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => { setEditProduct({ ...p }); setModal('editProduct'); }}
                   onMouseEnter={(e) => e.currentTarget.style.background = 'var(--row-hover)'}
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
@@ -288,13 +362,22 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
 
       {/* ═══ PACKAGES ═══ */}
       <div style={card}>
-        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>PACKAGE TEMPLATES ({packages.length})</span>
-          <button onClick={() => { setEditPackage({ id: '', name: '', description: '', products: [], color: '#6b7280', displayOrder: packages.length + 1, recommended: false, category: 'universal' }); setModal('editPackage'); }} style={{ ...b1, padding: '4px 12px', fontSize: 9 }}>+ ADD PACKAGE</button>
+        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span>PACKAGE TEMPLATES ({localPackages.length})</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {packagesDirty && (
+              <span style={{ fontFamily: FM, fontSize: 9, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '3px 8px', borderRadius: 3 }}>UNSAVED CHANGES</span>
+            )}
+            {packagesDirty && (
+              <button onClick={discardPackageChanges} style={{ ...b2, padding: '4px 10px', fontSize: 9 }}>DISCARD</button>
+            )}
+            <button onClick={commitPackages} disabled={!packagesDirty} style={{ ...b1, padding: '4px 12px', fontSize: 9, background: '#16a34a', opacity: packagesDirty ? 1 : 0.4, cursor: packagesDirty ? 'pointer' : 'default' }}>SAVE CHANGES</button>
+            <button onClick={() => { setEditPackage({ id: '', name: '', description: '', products: [], color: '#6b7280', displayOrder: localPackages.length + 1, recommended: false, category: 'universal' }); setModal('editPackage'); }} style={{ ...b1, padding: '4px 12px', fontSize: 9 }}>+ ADD PACKAGE</button>
+          </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {packages.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO PACKAGES CONFIGURED</div>}
-          {packages.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)).map((pkg) => (
+          {localPackages.length === 0 && <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontFamily: FM, fontSize: 11 }}>NO PACKAGES CONFIGURED</div>}
+          {localPackages.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0)).map((pkg) => (
             <div key={pkg.id} style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 4, height: 32, borderRadius: 2, background: pkg.color || '#6b7280' }} />
@@ -305,7 +388,7 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
                     {pkg.recommended && <span style={{ fontFamily: FM, fontSize: 8, fontWeight: 700, color: '#d97706', background: '#fef3c7', padding: '1px 6px', borderRadius: 3 }}>RECOMMENDED</span>}
                   </div>
                   <div style={{ fontFamily: FM, fontSize: 10, color: 'var(--text-muted)' }}>
-                    {pkg.products.length} products: {pkg.products.map((pid) => products.find((p) => p.id === pid)?.name || pid).join(', ')}
+                    {pkg.products.length} products: {pkg.products.map((pid) => localProducts.find((p) => p.id === pid)?.name || pid).join(', ')}
                   </div>
                 </div>
               </div>
@@ -445,7 +528,7 @@ export default function MenuSettings({ fiMenuConfig, saveFiMenuConfig, products,
           <PackageEditForm
             key={editPackage.id || '__new__'}
             initial={editPackage}
-            products={products}
+            products={localProducts}
             onSave={(pkg) => savePackage(pkg)}
             onCancel={() => { setModal(null); setEditPackage(null); }}
           />
