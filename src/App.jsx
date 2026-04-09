@@ -136,13 +136,15 @@ export default function App() {
         setFiDeals(data.fiDeals || []);
         setFiTargets(data.fiTargets || {});
         // Store-level F&I menu list: aggregate menus across all months for this store,
-        // deduped by id with most-recently-updated winning. Merge with the current
-        // month's loaded fiMenus so the user sees every menu they've ever built.
+        // deduped by id with most-recently-updated winning. Filter by store_id to
+        // prevent cross-store contamination.
         const monthMenus = Array.isArray(data.fiMenus) ? data.fiMenus : [];
         const allStoreMenus = await loadAllFiMenusForStore(storeId);
         const menuMap = new Map();
         [...monthMenus, ...allStoreMenus].forEach((m) => {
           if (!m || !m.id) return;
+          // Only include menus for THIS store (or menus with no store_id for backward compat)
+          if (m.store_id && m.store_id !== storeId) return;
           const existing = menuMap.get(m.id);
           if (!existing || (m.updatedAt || '') > (existing.updatedAt || '')) {
             menuMap.set(m.id, m);
@@ -318,7 +320,11 @@ export default function App() {
   function saveGsmBonusConfig(g) { updateAndSave(setGsmBonusConfig, 'gsmBonusConfig', g); }
   function savePromos(p) { updateAndSave(setPromos, 'promos', p); }
   function savePriceList(p) { updateAndSave(setPriceList, 'priceList', p); }
-  function saveFiMenus(f) { updateAndSave(setFiMenus, 'fiMenus', f); }
+  function saveFiMenus(f) {
+    // Stamp every menu with the current storeId if not already set
+    const stamped = (f || []).map((m) => m.store_id ? m : { ...m, store_id: storeId });
+    updateAndSave(setFiMenus, 'fiMenus', stamped);
+  }
   function saveFiMenuConfig(f) { updateAndSave(setFiMenuConfig, 'fiMenuConfig', f); }
   function savePromoRecords(p) { updateAndSave(setPromoRecords, 'promoRecords', p); }
   function savePricingRecords(p) { updateAndSave(setPricingRecords, 'pricingRecords', p); }

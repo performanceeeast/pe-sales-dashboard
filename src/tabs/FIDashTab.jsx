@@ -367,6 +367,7 @@ export default function FIDashTab({
           currentUser={currentUser}
           storeConfig={storeConfig}
           fiMenuConfig={fiMenuConfig}
+          storeId={storeId}
         />
       )}
 

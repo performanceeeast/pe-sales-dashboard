@@ -78,18 +78,22 @@ export function readFiMenusBackup(storeId) {
 // Load every saved finance menu for a store across every month in Supabase, deduped by id.
 // Provides store-level fiMenus persistence so menus aren't trapped in the month they were saved in.
 export async function loadAllFiMenusForStore(storeId) {
+  if (!storeId) return []; // Never return unfiltered data
   try {
-    let q = supabase.from('monthly_data').select('year,month,fi_menus');
-    if (storeId) q = q.eq('store_id', storeId);
-    const { data, error } = await q;
+    const { data, error } = await supabase
+      .from('monthly_data')
+      .select('year,month,fi_menus')
+      .eq('store_id', storeId);
     if (error || !data) return [];
     const byId = new Map();
     data.forEach((row) => {
       const arr = Array.isArray(row.fi_menus) ? row.fi_menus : [];
       arr.forEach((m) => {
         if (!m || !m.id) return;
+        // Belt-and-suspenders: only include menus that belong to this store
+        // (or have no store_id for backward compat with old menus)
+        if (m.store_id && m.store_id !== storeId) return;
         const existing = byId.get(m.id);
-        // Prefer the most recently updated copy
         if (!existing || (m.updatedAt || '') > (existing.updatedAt || '')) {
           byId.set(m.id, m);
         }
@@ -255,11 +259,14 @@ export async function loadMonth(storeId, year, month) {
     }
     // Same protection for the fiMenus list — if the backup has more menus than the
     // current data, prefer the backup. Dedupe by id with most-recently-updated winning.
-    if (fiMenusBackup && fiMenusBackup.length > 0) {
+    // Filter by storeId to prevent cross-store contamination.
+    if (fiMenusBackup && fiMenusBackup.length > 0 && storeId) {
       const current = (out && Array.isArray(out.fiMenus)) ? out.fiMenus : [];
       const byId = new Map();
       [...current, ...fiMenusBackup].forEach((m) => {
         if (!m || !m.id) return;
+        // Only include menus for this store (or no store_id = backward compat)
+        if (m.store_id && m.store_id !== storeId) return;
         const existing = byId.get(m.id);
         if (!existing || (m.updatedAt || '') > (existing.updatedAt || '')) {
           byId.set(m.id, m);

@@ -172,9 +172,9 @@ export function getPackagesForStore(storeConfig, allProducts, allPackages) {
 }
 
 // ── Empty Menu Template ──
-export function createEmptyMenu(currentUser, storeConfig) {
+export function createEmptyMenu(currentUser, storeConfig, storeId) {
   return {
-    id: '', status: 'draft',
+    id: '', status: 'draft', store_id: storeId || '',
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     createdBy: currentUser?.id || '',
     // Deal

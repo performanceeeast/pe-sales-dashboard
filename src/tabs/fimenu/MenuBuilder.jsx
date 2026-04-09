@@ -7,8 +7,8 @@ import { WARRANTY_BRANDS, getPlansForBrand, getHPGroupsForBrand, getAvailableTer
 
 const { card, cardHead: cH, input: inp, btn1: b1, btn2: b2, label: lbl } = styles;
 
-export default function MenuBuilder({ menu, onSave, onCancel, onPresent, products, packages, act, currentUser, storeConfig, fiMenuConfig }) {
-  const [f, sF] = useState(menu || createEmptyMenu(currentUser, storeConfig));
+export default function MenuBuilder({ menu, onSave, onCancel, onPresent, products, packages, act, currentUser, storeConfig, fiMenuConfig, storeId }) {
+  const [f, sF] = useState(menu || createEmptyMenu(currentUser, storeConfig, storeId));
   const u = (k, v) => sF((p) => ({ ...p, [k]: v }));
   const showCost = canViewFiMenuCost(currentUser);
 
