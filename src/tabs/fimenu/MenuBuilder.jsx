@@ -70,11 +70,11 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
   // Real-time payment calculation
   const summary = useMemo(() => {
     return calcDealSummary(
-      { salePrice: f.salePrice || 0, accessories: f.accessories || 0, freightPrep: f.freightPrep || 0, docFee: f.docFee || 0, downPayment: f.downPayment || 0, tradeAllowance: f.tradeAllowance || 0, tradePayoff: f.tradePayoff || 0, apr: f.apr || 0, term: f.term || 60 },
+      { salePrice: f.salePrice || 0, accessories: f.accessories || 0, freight: f.freight || 0, prep: f.prep || 0, freightPrep: f.freightPrep || 0, docFee: f.docFee || 0, downPayment: f.downPayment || 0, tradeAllowance: f.tradeAllowance || 0, tradePayoff: f.tradePayoff || 0, apr: f.apr || 0, term: f.term || 60 },
       f.selectedProducts || [],
       f.taxRate || 0
     );
-  }, [f.salePrice, f.accessories, f.freightPrep, f.docFee, f.downPayment, f.tradeAllowance, f.tradePayoff, f.apr, f.term, f.taxRate, f.selectedProducts]);
+  }, [f.salePrice, f.accessories, f.freight, f.prep, f.freightPrep, f.docFee, f.downPayment, f.tradeAllowance, f.tradePayoff, f.apr, f.term, f.taxRate, f.selectedProducts]);
 
   function handleSave(status = 'draft') {
     const saved = { ...f, status, updatedAt: new Date().toISOString(), amountFinanced: summary.withProductsFinanced, monthlyPayment: summary.withProductsPayment, totalOfPayments: summary.totalOfPayments, financeCharge: summary.financeCharge, basePayment: summary.basePayment };
@@ -155,10 +155,11 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
       <div style={card}>
         <div style={cH}>DEAL STRUCTURE</div>
         <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: 10 }}>
             <div><label style={lbl}>SALE PRICE ($)</label><input type="number" value={f.salePrice || ''} onChange={(e) => u('salePrice', parseFloat(e.target.value) || 0)} style={{ ...inp, fontWeight: 700, fontSize: 14 }} placeholder="0" /></div>
             <div><label style={lbl}>ACCESSORIES ($)</label><input type="number" value={f.accessories || ''} onChange={(e) => u('accessories', parseFloat(e.target.value) || 0)} style={inp} placeholder="0" /></div>
-            <div><label style={lbl}>FREIGHT / PREP ($)</label><input type="number" value={f.freightPrep || ''} onChange={(e) => u('freightPrep', parseFloat(e.target.value) || 0)} style={inp} placeholder="0" /></div>
+            <div><label style={lbl}>FREIGHT ($)</label><input type="number" value={f.freight || ''} onChange={(e) => u('freight', parseFloat(e.target.value) || 0)} style={inp} placeholder="0" /></div>
+            <div><label style={lbl}>PREP ($)</label><input type="number" value={f.prep || ''} onChange={(e) => u('prep', parseFloat(e.target.value) || 0)} style={inp} placeholder="0" /></div>
             <div><label style={lbl}>DOC FEE ($)</label><input type="number" value={f.docFee || ''} onChange={(e) => u('docFee', parseFloat(e.target.value) || 0)} style={inp} placeholder="299" /></div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10 }}>
@@ -230,13 +231,23 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
         </div>
       </div>
 
-      {/* ── OUTBOARD WARRANTY SELECTOR — Marine category only ── */}
-      {(normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType))) === 'marine' && (
+      {/* ── PRODUCT SELECTION — filtered by explicit product category ── */}
       <div style={card}>
-        <div style={{ ...cH, background: '#eff6ff', borderBottomColor: '#bfdbfe' }}>
-          <span style={{ color: '#2563eb' }}>OUTBOARD EXTENDED WARRANTY</span>
+        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+          <span>F&I PRODUCTS ({f.selectedProducts.length} selected)</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {(f.productCategory || f.unitType) && (() => {
+              const cat = PRODUCT_CATEGORIES.find((c) => c.id === normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType)));
+              return <span style={{ fontFamily: FM, fontSize: 9, color: cat?.color || 'var(--text-muted)' }}>Category: {cat?.label || '—'}</span>;
+            })()}
+            {showCost && <span style={{ fontFamily: FM, fontSize: 10, color: '#16a34a', fontWeight: 700 }}>GROSS: ${summary.productsGross.toLocaleString()}</span>}
+          </div>
         </div>
-        <div style={{ padding: 14 }}>
+
+        {/* Outboard warranty selector — marine only, integrated into the products card */}
+        {(normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType))) === 'marine' && (
+        <div style={{ background: '#eff6ff', borderBottom: '1px solid #bfdbfe', padding: 14 }}>
+          <div style={{ fontFamily: FH, fontSize: 10, fontWeight: 700, color: '#2563eb', letterSpacing: 1, marginBottom: 8 }}>OUTBOARD EXTENDED WARRANTY</div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ minWidth: 110 }}>
               <label style={lbl}>BRAND</label>
@@ -315,21 +326,8 @@ export default function MenuBuilder({ menu, onSave, onCancel, onPresent, product
             </div>
           )}
         </div>
-      </div>
       )}
 
-      {/* ── PRODUCT SELECTION — filtered by explicit product category ── */}
-      <div style={card}>
-        <div style={{ ...cH, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-          <span>F&I PRODUCTS ({f.selectedProducts.length} selected)</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {(f.productCategory || f.unitType) && (() => {
-              const cat = PRODUCT_CATEGORIES.find((c) => c.id === normalizeCategory(f.productCategory || getCategoryForUnitType(f.unitType)));
-              return <span style={{ fontFamily: FM, fontSize: 9, color: cat?.color || 'var(--text-muted)' }}>Category: {cat?.label || '—'}</span>;
-            })()}
-            {showCost && <span style={{ fontFamily: FM, fontSize: 10, color: '#16a34a', fontWeight: 700 }}>GROSS: ${summary.productsGross.toLocaleString()}</span>}
-          </div>
-        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {(() => {
             // Filter products by the explicit product category (override of unit-type-derived).

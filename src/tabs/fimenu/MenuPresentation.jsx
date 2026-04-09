@@ -15,9 +15,10 @@ export default function MenuPresentation({ menu, packages, products, onBack, sto
   // Calculate summary for each package
   const dealBase = {
     salePrice: menu.salePrice || 0, accessories: menu.accessories || 0,
-    freightPrep: menu.freightPrep || 0, docFee: menu.docFee || 0,
-    downPayment: menu.downPayment || 0, tradeAllowance: menu.tradeAllowance || 0,
-    tradePayoff: menu.tradePayoff || 0, apr: menu.apr || 0, term: menu.term || 60,
+    freight: menu.freight || 0, prep: menu.prep || 0, freightPrep: menu.freightPrep || 0,
+    docFee: menu.docFee || 0, downPayment: menu.downPayment || 0,
+    tradeAllowance: menu.tradeAllowance || 0, tradePayoff: menu.tradePayoff || 0,
+    apr: menu.apr || 0, term: menu.term || 60,
   };
 
   const baseSummary = calcDealSummary(dealBase, [], menu.taxRate || 0);

@@ -90,7 +90,7 @@ export const DEFAULT_LENDERS = [
 ];
 
 // ── Terms ──
-export const DEFAULT_TERMS = [24, 36, 48, 60, 72, 84, 96, 120, 144, 180];
+export const DEFAULT_TERMS = [24, 36, 48, 60, 72, 84, 96, 120, 144, 180, 240];
 
 // ── Menu Statuses ──
 export const MENU_STATUSES = {
@@ -185,7 +185,7 @@ export function createEmptyMenu(currentUser, storeConfig) {
     productCategory: '', // explicit catalog category (universal/offroad/marine/pwc_jetboat), overrides unit-type-derived
     make: '', model: '', year: new Date().getFullYear(), vin: '', newUsed: 'new',
     // Pricing
-    salePrice: 0, accessories: 0, freightPrep: 0, docFee: 299,
+    salePrice: 0, accessories: 0, freight: 0, prep: 0, freightPrep: 0, docFee: 299,
     taxRate: 0, downPayment: 0, tradeAllowance: 0, tradePayoff: 0,
     // Finance
     lender: '', term: 60, apr: 0,

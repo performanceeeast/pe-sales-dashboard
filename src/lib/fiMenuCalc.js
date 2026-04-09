@@ -7,11 +7,13 @@
  * Calculate amount financed from deal info and selected products.
  */
 export function calcAmountFinanced({
-  salePrice = 0, accessories = 0, freightPrep = 0, docFee = 0,
+  salePrice = 0, accessories = 0, freight = 0, prep = 0, freightPrep = 0, docFee = 0,
   taxRate = 0, downPayment = 0, tradeAllowance = 0, tradePayoff = 0,
   financeableProductsTotal = 0,
 }) {
-  const subtotal = salePrice + accessories + freightPrep + docFee + financeableProductsTotal;
+  // Support both new split fields (freight + prep) and legacy combined field (freightPrep)
+  const totalFreightPrep = (freight || 0) + (prep || 0) + (freightPrep || 0);
+  const subtotal = salePrice + accessories + totalFreightPrep + docFee + financeableProductsTotal;
   const taxable = subtotal; // Simplified — adjust per state tax rules if needed
   const taxes = taxable * (taxRate / 100);
   const tradeNet = tradeAllowance - tradePayoff;
